@@ -38,24 +38,11 @@ class IntrinsicRewardTracker:
         self.total_visits[state] += 1
     
     def get_intrinsic_reward(self, state: Tuple) -> float:
-        """
-        Calculate intrinsic reward for visiting state.
-        
-        Formula: r_intrinsic = 1 / sqrt(n(s))
-        where n(s) is the number of visits to s in current episode.
-        
-        Args:
-            state: State tuple
-        
-        Returns:
-            Intrinsic reward value
-        """
+        # Intrinsic reward: 1 / sqrt(n) where n = visit count in current episode
         n = self.episode_visits.get(state, 0)
         if n == 0:
-            # First visit: maximum bonus
             return 1.0
         else:
-            # Diminishing returns for repeated visits
             return 1.0 / math.sqrt(n)
     
     def get_combined_reward(self, state: Tuple, env_reward: float) -> float:

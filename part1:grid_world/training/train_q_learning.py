@@ -1,11 +1,4 @@
-"""
-Q-Learning training script for all levels.
-
-Usage:
-    python train_q_learning.py              # Train all levels
-    python train_q_learning.py --level 0    # Train specific level
-    python train_q_learning.py --no-visual  # Fast training without visualization
-"""
+"""Q-Learning training script for all levels."""
 
 import argparse
 import os
@@ -19,30 +12,15 @@ from core import get_level_config, set_seed, TrainingLogger
 
 
 def train_q_learning(level_num: int, visualize: bool = True, use_intrinsic: bool = False):
-    """
-    Train Q-Learning agent on specified level.
-    
-    Args:
-        level_num: Level number (0-6)
-        visualize: Whether to show visualization
-        use_intrinsic: Whether to use intrinsic rewards (Level 6)
-    
-    Returns:
-        Dictionary with training results
-    """
-    # Load configuration
     config = get_level_config(level_num)
     level_name = get_level_name(level_num)
     
-    # Set random seed
     set_seed(config['seed'])
     
-    # Create environment
     layout = get_level(level_num)
     monster_prob = config.get('monsterMoveProb', 0.4)
     env = GridWorld(layout, monster_move_prob=monster_prob)
     
-    # Create agent
     if use_intrinsic or config.get('useIntrinsicReward', False):
         agent = IntrinsicQLearningAgent(
             alpha=config['alpha'],
@@ -62,19 +40,16 @@ def train_q_learning(level_num: int, visualize: bool = True, use_intrinsic: bool
         )
         algorithm_name = "Q-Learning"
     
-    # Create renderer
     renderer = None
     if visualize:
         renderer = GridWorldRenderer(tile_size=config['tileSize'])
         renderer.init_display(env, title=f"{algorithm_name} - {level_name}")
     
-    # Training parameters
     episodes = config['episodes']
     max_steps = config['maxStepsPerEpisode']
     fps_visual = config['fpsVisual']
     fps_fast = config['fpsFast']
     
-    # Training state
     logger = TrainingLogger()
     running = True
     show_visual = visualize

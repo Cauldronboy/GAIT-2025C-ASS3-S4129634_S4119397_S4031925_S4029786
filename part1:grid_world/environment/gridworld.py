@@ -1,20 +1,10 @@
-"""
-Core GridWorld environment for reinforcement learning.
-
-Supports:
-- Movement in 4 directions with rock blocking
-- Apples, keys, chests
-- Fire hazards and monsters
-- Probabilistic monster movement
-- State encoding with apple/chest collection tracking
-"""
+"""Core GridWorld environment for reinforcement learning."""
 
 import random
 from dataclasses import dataclass
 from typing import Tuple, List, Set, Dict, Optional
 
 
-# Actions: 0=up, 1=right, 2=down, 3=left
 ACTIONS = [(0, -1), (1, 0), (0, 1), (-1, 0)]
 A_UP, A_RIGHT, A_DOWN, A_LEFT = 0, 1, 2, 3
 ALL_ACTIONS = [A_UP, A_RIGHT, A_DOWN, A_LEFT]
@@ -22,30 +12,14 @@ ALL_ACTIONS = [A_UP, A_RIGHT, A_DOWN, A_LEFT]
 
 @dataclass
 class StepResult:
-    """Result of taking an action in the environment."""
-    next_state: Tuple  # State representation
+    next_state: Tuple
     reward: float
     done: bool
     info: dict
 
 
 class GridWorld:
-    """
-    GridWorld environment with full mechanics support.
-    
-    State representation:
-    - For levels without monsters: (x, y, apple_mask, has_key, chest_mask)
-    - For levels with monsters: (x, y, apple_mask, has_key, chest_mask, monster_positions_tuple)
-    """
-    
     def __init__(self, layout: List[str], monster_move_prob: float = 0.4):
-        """
-        Initialize GridWorld from layout.
-        
-        Args:
-            layout: List of strings representing the grid
-            monster_move_prob: Probability that each monster moves after agent action
-        """
         self.layout = layout
         self.h = len(layout)
         self.w = len(layout[0]) if layout else 0
@@ -76,7 +50,6 @@ class GridWorld:
         self.step_count: int = 0
         
     def _parse_layout(self):
-        """Parse the level layout and populate object sets."""
         for y, row in enumerate(self.layout):
             for x, ch in enumerate(row):
                 pos = (x, y)
@@ -98,41 +71,28 @@ class GridWorld:
                     self.initial_monsters.append(pos)
     
     def reset(self) -> Tuple:
-        """Reset environment to initial state."""
         self.agent = self.start
         self.collected_keys = 0
         self.opened_chests = set()
         self.alive = True
         self.step_count = 0
         
-        # Initialize apple mask (bit per apple)
+        # Bit masks: 1 bit per apple/chest, 1 = uncollected, 0 = collected
         self.apple_mask = 0
         for i in range(len(self.apples)):
             self.apple_mask |= (1 << i)
         
-        # Initialize chest mask
         self.chest_mask = 0
         for i in range(len(self.chests)):
             self.chest_mask |= (1 << i)
         
-        # Reset monsters to initial positions
         self.monsters = list(self.initial_monsters)
         
         return self.encode_state()
     
     def encode_state(self) -> Tuple:
-        """
-        Encode current state as a tuple.
-        
-        Returns tuple with:
-        - Agent position (x, y)
-        - Apple collection mask
-        - Number of keys held
-        - Chest opened mask
-        - Monster positions (if monsters present)
-        """
+        # State: (x, y, apple_bits, keys_held, chest_bits, [monster_positions])
         if self.monsters:
-            # Include monster positions in state for stochastic environment
             monster_tuple = tuple(sorted(self.monsters))
             return (self.agent[0], self.agent[1], self.apple_mask, 
                    self.collected_keys, self.chest_mask, monster_tuple)
@@ -149,15 +109,9 @@ class GridWorld:
         return pos in self.rocks
     
     def has_monster_at(self, pos: Tuple[int, int]) -> bool:
-        """Check if there's a monster at position."""
         return pos in self.monsters
     
     def try_move(self, pos: Tuple[int, int], action: int) -> Tuple[int, int]:
-        """
-        Attempt to move from position in given direction.
-        
-        Returns new position (same as input if move blocked).
-        """
         dx, dy = ACTIONS[action]
         new_pos = (pos[0] + dx, pos[1] + dy)
         
@@ -169,32 +123,26 @@ class GridWorld:
         return new_pos
     
     def move_monsters(self):
-        """Move each monster with probability monster_move_prob."""
         new_monsters = []
         
         for monster_pos in self.monsters:
             if random.random() < self.monster_move_prob:
-                # Get valid moves for this monster
                 valid_moves = []
                 for action in ALL_ACTIONS:
                     new_pos = self.try_move(monster_pos, action)
-                    # Monsters can't move into rocks or other monsters
                     if new_pos != monster_pos and new_pos not in new_monsters:
                         valid_moves.append(new_pos)
                 
-                # If no valid moves, stay in place
                 if valid_moves:
                     new_monsters.append(random.choice(valid_moves))
                 else:
                     new_monsters.append(monster_pos)
             else:
-                # Didn't move this turn
                 new_monsters.append(monster_pos)
         
         self.monsters = new_monsters
     
     def check_death(self) -> bool:
-        """Check if agent died (fire or monster collision)."""
         if self.agent in self.fires:
             return True
         if self.has_monster_at(self.agent):
@@ -202,20 +150,9 @@ class GridWorld:
         return False
     
     def check_win_condition(self) -> bool:
-        """Check if all collectibles are obtained."""
-        # All apples collected and all chests opened
         return self.apple_mask == 0 and self.chest_mask == 0
     
     def step(self, action: int) -> StepResult:
-        """
-        Execute one environment step.
-        
-        Args:
-            action: Action to take (0=up, 1=right, 2=down, 3=left)
-        
-        Returns:
-            StepResult with next state, reward, done flag, and info
-        """
         if not self.alive:
             return StepResult(self.encode_state(), 0.0, True, {"event": "already_dead"})
         
@@ -224,49 +161,41 @@ class GridWorld:
         done = False
         info = {}
         
-        # 1. Agent moves
         self.agent = self.try_move(self.agent, action)
         
-        # 2. Check for death (fire or monster)
         if self.check_death():
             self.alive = False
             return StepResult(self.encode_state(), reward, True, {"event": "death"})
         
-        # 3. Collect apple if present
         if self.agent in self.apple_index:
             idx = self.apple_index[self.agent]
-            if (self.apple_mask >> idx) & 1:  # Check if apple not yet collected
-                self.apple_mask &= ~(1 << idx)  # Clear bit
+            if (self.apple_mask >> idx) & 1:
+                self.apple_mask &= ~(1 << idx)
                 reward += 1.0
                 info["collected"] = "apple"
         
-        # 4. Collect key if present
         if self.agent in self.keys:
             self.collected_keys += 1
-            self.keys.remove(self.agent)  # Remove from set so can't collect again
+            self.keys.remove(self.agent)
             info["collected"] = "key"
         
-        # 5. Open chest if present and have key
         if self.agent in self.chest_index and self.agent not in self.opened_chests:
             if self.collected_keys > 0:
                 idx = self.chest_index[self.agent]
-                if (self.chest_mask >> idx) & 1:  # Check if chest not yet opened
+                if (self.chest_mask >> idx) & 1:
                     self.chest_mask &= ~(1 << idx)
                     self.collected_keys -= 1
                     self.opened_chests.add(self.agent)
                     reward += 2.0
                     info["collected"] = "chest"
         
-        # 6. Move monsters (after agent action)
         if self.monsters:
             self.move_monsters()
             
-            # Check for death after monster movement
             if self.check_death():
                 self.alive = False
                 return StepResult(self.encode_state(), reward, True, {"event": "death_by_monster"})
         
-        # 7. Check win condition
         if self.check_win_condition():
             done = True
             info["event"] = "win"
@@ -274,21 +203,18 @@ class GridWorld:
         return StepResult(self.encode_state(), reward, done, info)
     
     def get_valid_actions(self, pos: Optional[Tuple[int, int]] = None) -> List[int]:
-        """Get list of valid actions from given position (or current agent position)."""
         if pos is None:
             pos = self.agent
         
         valid = []
         for action in ALL_ACTIONS:
             new_pos = self.try_move(pos, action)
-            if new_pos != pos:  # Move was not blocked
+            if new_pos != pos:
                 valid.append(action)
         
-        # Always include at least one action (even if all blocked, can try to move)
         return valid if valid else [A_UP]
     
     def render_text(self) -> str:
-        """Return text representation of current state (for debugging)."""
         lines = []
         for y in range(self.h):
             row = []

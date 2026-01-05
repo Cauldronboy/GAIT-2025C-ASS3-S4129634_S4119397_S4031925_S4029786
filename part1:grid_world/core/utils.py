@@ -1,6 +1,4 @@
-"""
-Utility functions for training.
-"""
+"""Utility functions for training."""
 
 import json
 import os
@@ -10,16 +8,6 @@ from typing import List
 
 
 def load_config(config_file: str = "config.json") -> dict:
-    """
-    Load configuration from JSON file.
-    
-    Args:
-        config_file: Path to config file (relative to project root)
-    
-    Returns:
-        Configuration dictionary
-    """
-    # Get path relative to project root (parent of core/)
     if not os.path.isabs(config_file):
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         config_file = os.path.join(project_root, config_file)
@@ -32,16 +20,6 @@ def load_config(config_file: str = "config.json") -> dict:
 
 
 def get_level_config(level_num: int, config_file: str = "config.json") -> dict:
-    """
-    Get configuration for specific level.
-    
-    Args:
-        level_num: Level number (0-6)
-        config_file: Path to config file
-    
-    Returns:
-        Level configuration dictionary
-    """
     config = load_config(config_file)
     level_key = f"level{level_num}"
     
@@ -52,48 +30,22 @@ def get_level_config(level_num: int, config_file: str = "config.json") -> dict:
 
 
 def set_seed(seed: int):
-    """
-    Set random seeds for reproducibility.
-    
-    Args:
-        seed: Random seed
-    """
     random.seed(seed)
     np.random.seed(seed)
 
 
 class TrainingLogger:
-    """Logger for tracking training progress."""
-    
     def __init__(self):
-        """Initialize logger."""
         self.episode_rewards: List[float] = []
         self.episode_lengths: List[int] = []
         self.episode_successes: List[bool] = []
     
     def log_episode(self, reward: float, length: int, success: bool):
-        """
-        Log episode results.
-        
-        Args:
-            reward: Total episode reward
-            length: Episode length (steps)
-            success: Whether episode succeeded
-        """
         self.episode_rewards.append(reward)
         self.episode_lengths.append(length)
         self.episode_successes.append(success)
     
     def get_stats(self, last_n: int = None) -> dict:
-        """
-        Get training statistics.
-        
-        Args:
-            last_n: Number of recent episodes to analyze (None for all)
-        
-        Returns:
-            Statistics dictionary
-        """
         if last_n is not None:
             rewards = self.episode_rewards[-last_n:]
             lengths = self.episode_lengths[-last_n:]
@@ -115,14 +67,6 @@ class TrainingLogger:
         }
     
     def print_progress(self, episode: int, total_episodes: int, window: int = 100):
-        """
-        Print training progress.
-        
-        Args:
-            episode: Current episode
-            total_episodes: Total episodes
-            window: Window for recent statistics
-        """
         if episode % window == 0 and episode > 0:
             stats = self.get_stats(last_n=window)
             print(f"Episode {episode}/{total_episodes} | "

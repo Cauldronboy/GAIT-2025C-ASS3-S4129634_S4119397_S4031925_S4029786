@@ -23,21 +23,17 @@ from core import get_level_config, set_seed, TrainingLogger
 
 
 class Button:
-    """Simple button for menu."""
-    
     def __init__(self, x: int, y: int, width: int, height: int, text: str, task_num: int):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.task_num = task_num
         self.hovered = False
         
-        # Colors
         self.color_normal = (45, 50, 58)
         self.color_hover = (74, 222, 128)
         self.color_text = (240, 240, 240)
     
     def draw(self, screen: pygame.Surface, font: pygame.font.Font):
-        """Draw button."""
         color = self.color_hover if self.hovered else self.color_normal
         pygame.draw.rect(screen, color, self.rect, border_radius=8)
         pygame.draw.rect(screen, (100, 100, 100), self.rect, 2, border_radius=8)
@@ -47,20 +43,16 @@ class Button:
         screen.blit(text_surface, text_rect)
     
     def update_hover(self, mouse_pos: Tuple[int, int]):
-        """Update hover state."""
         self.hovered = self.rect.collidepoint(mouse_pos)
     
     def is_clicked(self, mouse_pos: Tuple[int, int]) -> bool:
-        """Check if button was clicked."""
         return self.rect.collidepoint(mouse_pos)
 
 
 def draw_menu(screen: pygame.Surface, buttons: list, font: pygame.font.Font, 
               font_title: pygame.font.Font):
-    """Draw main menu."""
     screen.fill((25, 28, 34))
     
-    # Title
     title = font_title.render("GAIT Assignment 3 - Reinforcement Learning", True, (74, 222, 128))
     title_rect = title.get_rect(center=(400, 50))
     screen.blit(title, title_rect)
@@ -69,11 +61,9 @@ def draw_menu(screen: pygame.Surface, buttons: list, font: pygame.font.Font,
     subtitle_rect = subtitle.get_rect(center=(400, 100))
     screen.blit(subtitle, subtitle_rect)
     
-    # Draw buttons
     for button in buttons:
         button.draw(screen, font)
     
-    # Instructions
     info = font.render("ESC - Quit | Click a task to begin", True, (156, 163, 175))
     info_rect = info.get_rect(center=(400, 560))
     screen.blit(info, info_rect)
@@ -82,12 +72,6 @@ def draw_menu(screen: pygame.Surface, buttons: list, font: pygame.font.Font,
 
 
 def show_menu() -> Optional[int]:
-    """
-    Show main menu and return selected task number.
-    
-    Returns:
-        Task number (0-6) or None to quit
-    """
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
     pygame.display.set_caption("GridWorld RL - Main Menu")
@@ -96,7 +80,6 @@ def show_menu() -> Optional[int]:
     font = pygame.font.SysFont("arial", 18)
     font_title = pygame.font.SysFont("arial", 28, bold=True)
     
-    # Create buttons for each task
     button_width, button_height = 600, 50
     start_y = 140
     spacing = 60
@@ -152,25 +135,14 @@ def show_menu() -> Optional[int]:
 
 
 def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = False):
-    """
-    Run training for a specific task.
-    
-    Args:
-        level_num: Level number (0-6)
-        use_sarsa: Use SARSA instead of Q-Learning
-        use_intrinsic: Use intrinsic rewards
-    """
-    # Load configuration
     config = get_level_config(level_num)
     level_name = get_level_name(level_num)
     set_seed(config['seed'])
     
-    # Create environment
     layout = get_level(level_num)
     monster_prob = config.get('monsterMoveProb', 0.4)
     env = GridWorld(layout, monster_move_prob=monster_prob)
     
-    # Create agent
     if use_intrinsic:
         agent = IntrinsicQLearningAgent(
             alpha=config['alpha'],
@@ -199,17 +171,13 @@ def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = Fals
         )
         algorithm_name = "Q-Learning"
     
-    # Create renderer
     renderer = GridWorldRenderer(tile_size=config['tileSize'])
     renderer.init_display(env, title=f"{algorithm_name} - {level_name}")
-    
-    # Training parameters
     episodes = config['episodes']
     max_steps = config['maxStepsPerEpisode']
     fps_visual = config['fpsVisual']
     fps_fast = config['fpsFast']
     
-    # Training state
     logger = TrainingLogger()
     running = True
     show_visual = True
@@ -218,7 +186,6 @@ def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = Fals
     print(f"Episodes: {episodes}, Alpha: {config['alpha']}, Gamma: {config['gamma']}")
     print(f"Controls: V=toggle speed | R=reset | ESC=quit\n")
     
-    # Training loop
     for episode in range(episodes):
         state = env.reset()
         agent.reset_episode()
@@ -227,12 +194,11 @@ def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = Fals
         step = 0
         epsilon = agent.get_epsilon(episode)
         
-        # For SARSA: select initial action
+        # SARSA needs initial action before loop
         if use_sarsa:
             action = agent.select_action(state, epsilon)
         
         while running and step < max_steps:
-            # Handle events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -244,7 +210,6 @@ def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = Fals
                     if event.key == pygame.K_v:
                         show_visual = not show_visual
                     if event.key == pygame.K_r:
-                        # Reset training
                         state = env.reset()
                         agent.reset_episode()
                         episode_reward = 0.0
@@ -255,53 +220,46 @@ def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = Fals
             if not running:
                 break
             
-            # Select action (Q-Learning) or use already selected (SARSA)
+            # Q-learning selects action here; SARSA uses pre-selected action
             if not use_sarsa:
                 action = agent.select_action(state, epsilon)
             
-            # Take step
             result = env.step(action)
             
-            # Update agent
             if use_sarsa:
+                # SARSA updates with actual next action (on-policy)
                 next_action = agent.select_action(result.next_state, epsilon)
                 agent.update(state, action, result.reward, result.next_state, 
                            next_action, result.done)
                 action = next_action
             else:
+                # Q-learning updates with max Q-value (off-policy)
                 agent.update(state, action, result.reward, result.next_state, result.done)
             
-            # Track reward
             episode_reward += result.reward
             state = result.next_state
             step += 1
             
-            # Render
             if show_visual or step % 10 == 0:
                 extra_info = f"Q-table size: {agent.qtable.size()}"
                 renderer.render(env, episode, episodes, step, epsilon, 
                               episode_reward, algorithm_name, level_name, extra_info)
                 renderer.tick(fps_visual if show_visual else fps_fast)
             
-            # Check if done
             if result.done:
                 break
         
-        # Log episode
         success = env.check_win_condition()
         logger.log_episode(episode_reward, step, success)
         
-        # Print progress
         if episode % 100 == 0 or episode == episodes - 1:
             logger.print_progress(episode, episodes)
         
         if not running:
             break
     
-    # Cleanup
     renderer.close()
     
-    # Print final statistics
     stats = logger.get_stats()
     print(f"\n{'='*60}")
     print(f"Training Complete: {algorithm_name} on {level_name}")
@@ -313,19 +271,16 @@ def run_task(level_num: int, use_sarsa: bool = False, use_intrinsic: bool = Fals
 
 
 def main():
-    """Main entry point."""
-    # Task configuration: (level, use_sarsa, use_intrinsic)
     tasks = {
-        0: (0, False, False),  # Task 1: Q-Learning Level 0
-        1: (1, True, False),   # Task 2: SARSA Level 1
-        2: (2, False, False),  # Task 3: Q-Learning Level 2
-        3: (3, False, False),  # Task 3: Q-Learning Level 3
-        4: (4, False, False),  # Task 4: Q-Learning Level 4
-        5: (5, True, False),   # Task 4: SARSA Level 5
-        6: (6, False, True),   # Task 5: Q-Learning Level 6 (intrinsic)
+        0: (0, False, False),
+        1: (1, True, False),
+        2: (2, False, False),
+        3: (3, False, False),
+        4: (4, False, False),
+        5: (5, True, False),
+        6: (6, False, True),
     }
     
-    # Check for command-line argument
     if len(sys.argv) > 1:
         try:
             task_num = int(sys.argv[1])
@@ -340,18 +295,14 @@ def main():
             print("Error: Task number must be an integer (0-6)")
             sys.exit(1)
     else:
-        # GUI menu loop
         while True:
             selected_task = show_menu()
             
             if selected_task is None:
-                # User pressed ESC or closed window
                 break
             
-            # Run selected task
             level, use_sarsa, use_intrinsic = tasks[selected_task]
             run_task(level, use_sarsa, use_intrinsic)
-            
-            # Return to menu after task completes
+
 if __name__ == "__main__":
     main()

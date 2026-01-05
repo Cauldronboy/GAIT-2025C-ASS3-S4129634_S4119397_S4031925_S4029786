@@ -12,7 +12,6 @@ Legend:
     . = Empty space
 """
 
-# Level 0: Basic apples collection - shortest path learning
 LEVEL_0 = [
     "S           ",
     "            ",
@@ -24,7 +23,6 @@ LEVEL_0 = [
     "            "
 ]
 
-# Level 1: Apples with fire hazards - SARSA should be more conservative
 LEVEL_1 = [
     "S           ",
     "  F   F     ",
@@ -36,7 +34,6 @@ LEVEL_1 = [
     "            "
 ]
 
-# Level 2: Multiple apples, key, and chest
 LEVEL_2 = [
     "S     R     ",
     "      R     ",
@@ -48,7 +45,6 @@ LEVEL_2 = [
     "            "
 ]
 
-# Level 3: More complex key-chest puzzle
 LEVEL_3 = [
     "S  R  R  R  ",
     "   R     R  ",
@@ -60,7 +56,6 @@ LEVEL_3 = [
     "      A     "
 ]
 
-# Level 4: Monsters with simple movement
 LEVEL_4 = [
     "S     R     ",
     "  M   R     ",
@@ -72,7 +67,6 @@ LEVEL_4 = [
     "            "
 ]
 
-# Level 5: Multiple monsters with key-chest objective
 LEVEL_5 = [
     "S  R  M  R  ",
     "   R     R  ",
@@ -84,7 +78,6 @@ LEVEL_5 = [
     "      A     "
 ]
 
-# Level 6: Complex layout for intrinsic reward exploration
 LEVEL_6 = [
     "S  R  R  R  ",
     "   R     R  ",
@@ -96,7 +89,6 @@ LEVEL_6 = [
     "      A     "
 ]
 
-# Map level index to layout
 LEVELS = {
     0: LEVEL_0,
     1: LEVEL_1,

@@ -1,12 +1,4 @@
-"""
-Pygame renderer for GridWorld visualization.
-
-Handles all visual rendering including:
-- Grid and tiles
-- Game objects (apples, keys, chests, rocks, fires, monsters)
-- Agent animation
-- HUD with training stats
-"""
+"""Pygame renderer for GridWorld visualization."""
 
 import pygame
 from typing import Tuple, Optional
@@ -14,9 +6,6 @@ from .gridworld import GridWorld
 
 
 class GridWorldRenderer:
-    """Renders GridWorld using Pygame."""
-    
-    # Colors
     COL_BG = (25, 28, 34)
     COL_GRID = (45, 50, 58)
     COL_AGENT = (74, 222, 128)
@@ -31,12 +20,6 @@ class GridWorldRenderer:
     COL_TEXT_DIM = (156, 163, 175)
     
     def __init__(self, tile_size: int = 48):
-        """
-        Initialize renderer.
-        
-        Args:
-            tile_size: Size of each grid tile in pixels
-        """
         self.tile_size = tile_size
         self.screen: Optional[pygame.Surface] = None
         self.clock: Optional[pygame.time.Clock] = None
@@ -44,7 +27,6 @@ class GridWorldRenderer:
         self.font_small: Optional[pygame.font.Font] = None
         
     def init_display(self, env: GridWorld, title: str = "GridWorld RL"):
-        """Initialize Pygame display."""
         pygame.init()
         width = env.w * self.tile_size
         height = env.h * self.tile_size
@@ -55,12 +37,10 @@ class GridWorldRenderer:
         self.font_small = pygame.font.SysFont("consolas", 14)
     
     def close(self):
-        """Close Pygame display."""
         if self.screen:
             pygame.quit()
     
     def draw_grid(self, env: GridWorld):
-        """Draw grid lines."""
         for x in range(env.w):
             for y in range(env.h):
                 rect = pygame.Rect(
@@ -73,7 +53,6 @@ class GridWorldRenderer:
     
     def draw_tile_centered_circle(self, pos: Tuple[int, int], color: Tuple[int, int, int], 
                                    radius_ratio: float = 0.3):
-        """Draw a circle centered in a tile."""
         x, y = pos
         center = (
             x * self.tile_size + self.tile_size // 2,
@@ -100,46 +79,34 @@ class GridWorldRenderer:
             self.draw_tile_rect(rock, self.COL_ROCK, margin=2)
     
     def draw_fires(self, env: GridWorld):
-        """Draw fire hazards with flame animation."""
         for fire in env.fires:
-            # Draw multiple circles for flame effect
             self.draw_tile_centered_circle(fire, self.COL_FIRE, 0.25)
-            # Add slight offset circles for flame effect
             x, y = fire
             cx = x * self.tile_size + self.tile_size // 2
             cy = y * self.tile_size + self.tile_size // 2
             
-            # Outer glow
             pygame.draw.circle(self.screen, (251, 191, 36), (cx, cy), 
                              int(self.tile_size * 0.35), 2)
     
     def draw_apples(self, env: GridWorld):
-        """Draw uncollected apples."""
         for apple_pos, idx in env.apple_index.items():
-            if (env.apple_mask >> idx) & 1:  # Apple not collected
+            if (env.apple_mask >> idx) & 1:
                 self.draw_tile_centered_circle(apple_pos, self.COL_APPLE, 0.28)
     
     def draw_keys(self, env: GridWorld):
-        """Draw uncollected keys."""
         for key in env.keys:
-            # Draw key as small rectangle with circle
             x, y = key
             cx = x * self.tile_size + self.tile_size // 2
             cy = y * self.tile_size + self.tile_size // 2
             
-            # Key shaft
             rect = pygame.Rect(cx - 3, cy - 8, 6, 12)
             pygame.draw.rect(self.screen, self.COL_KEY, rect, border_radius=2)
-            # Key head
             pygame.draw.circle(self.screen, self.COL_KEY, (cx, cy - 10), 6)
     
     def draw_chests(self, env: GridWorld):
-        """Draw chests (opened or closed)."""
         for chest_pos, idx in env.chest_index.items():
-            if (env.chest_mask >> idx) & 1:  # Chest not opened
-                # Closed chest
+            if (env.chest_mask >> idx) & 1:
                 self.draw_tile_rect(chest_pos, self.COL_CHEST_CLOSED, margin=8)
-                # Draw lock indicator
                 x, y = chest_pos
                 cx = x * self.tile_size + self.tile_size // 2
                 cy = y * self.tile_size + self.tile_size // 2
@@ -149,10 +116,8 @@ class GridWorldRenderer:
                 self.draw_tile_rect(chest_pos, self.COL_CHEST_OPEN, margin=8)
     
     def draw_monsters(self, env: GridWorld):
-        """Draw monsters."""
         for monster in env.monsters:
             self.draw_tile_centered_circle(monster, self.COL_MONSTER, 0.32)
-            # Add eyes
             x, y = monster
             cx = x * self.tile_size + self.tile_size // 2
             cy = y * self.tile_size + self.tile_size // 2
@@ -163,11 +128,9 @@ class GridWorldRenderer:
                              (cx + eye_offset, cy - 3), 3)
     
     def draw_agent(self, env: GridWorld):
-        """Draw the agent."""
         if env.alive:
             self.draw_tile_rect(env.agent, self.COL_AGENT, margin=8)
         else:
-            # Dead agent (gray X)
             x, y = env.agent
             cx = x * self.tile_size + self.tile_size // 2
             cy = y * self.tile_size + self.tile_size // 2
