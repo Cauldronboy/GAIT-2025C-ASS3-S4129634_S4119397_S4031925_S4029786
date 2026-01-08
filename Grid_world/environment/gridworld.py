@@ -29,6 +29,7 @@ class GridWorld:
         self.rocks: Set[Tuple[int, int]] = set()
         self.fires: Set[Tuple[int, int]] = set()
         self.keys: Set[Tuple[int, int]] = set()
+        self.initial_keys: Set[Tuple[int, int]] = set()
         self.chests: Set[Tuple[int, int]] = set()
         self.apples: List[Tuple[int, int]] = []
         self.apple_index: Dict[Tuple[int, int], int] = {}
@@ -60,6 +61,7 @@ class GridWorld:
                     self.apples.append(pos)
                 elif ch == 'K':
                     self.keys.add(pos)
+                    self.initial_keys.add(pos)
                 elif ch == 'C':
                     self.chest_index[pos] = len(self.chests)
                     self.chests.add(pos)
@@ -86,6 +88,7 @@ class GridWorld:
         for i in range(len(self.chests)):
             self.chest_mask |= (1 << i)
         
+        self.keys = set(self.initial_keys)
         self.monsters = list(self.initial_monsters)
         
         return self.encode_state()
