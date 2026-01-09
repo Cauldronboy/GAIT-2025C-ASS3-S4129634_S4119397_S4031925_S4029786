@@ -165,10 +165,13 @@ class Arena:
         for h in hittables[:]:
             h.update(dt)
         
+        # Updating frame
         self.spawners: List[entities.Spawner] = [spn for spn in hittables if isinstance(spn, entities.Spawner)]
         self.enemies: List[entities.Enemy] = [enem for enem in hittables if isinstance(enem, entities.Enemy)]
 
         self.alive = not self.agent.out_of_health()
+
+        # TODO: Reward function
 
         # Placeholder return
         return StepResult(
