@@ -1,4 +1,4 @@
-"""Vector helper funtions"""
+"""Helper functions for coordinate-based math"""
 
 import math
 from typing import Tuple
@@ -6,6 +6,7 @@ from typing import Tuple
 
 # Vector helpers
 def vec_norm(v: Tuple[float, float]) -> Tuple[float, float]:
+    """Return vector of length 1 pointing at the same direction"""
     length = math.hypot(v[0], v[1])
     if length == 0:
         return (0.0, 0.0)
@@ -24,9 +25,15 @@ def vec_norm(v: Tuple[float, float]) -> Tuple[float, float]:
     return (v[0] / length, v[1] / length)
 
 def dot_product(v1: Tuple[float, float], v2: Tuple[float, float]) -> float:
+    """Return dot product of 2 vectors"""
     return v1[0] * v2[0] + v1[1] * v2[1]
 
 def vec_len(*args) -> float:
+    """
+    (Tuple): Vector length\n
+    (List[Tuple[]]): Distance between first and last point in list\n
+    (Tuple, Tuple): Distance between two points
+    """
     if len(args) == 1:
         x = args[0]
 
@@ -46,25 +53,32 @@ def vec_len(*args) -> float:
 
     raise TypeError("Invalid arguments for length()")
 
-def angle_from_origin(v: Tuple[float, float]) -> float:
+def vec_to_ang(v: Tuple[float, float]) -> float:
+    """Angle from origin (degrees)"""
     return math.degrees(math.atan2(v[1], v[0])) % 360
 
-def vec_sub(a, b):
+def ang_to_vec(d: float) -> Tuple[float, float]:
+    """Vector from angle (degrees)"""
+    x = math.cos(math.radians(d))
+    y = math.sin(math.radians(d))
+    return (x, y)
+
+def vec_sub(a: Tuple[float, float], b: Tuple[float, float]) -> Tuple:
     """Subtract vector b from a."""
     # Used to find the difference between two points or velocities.
     return (a[0]-b[0], a[1]-b[1])
 
-def vec_add(a, b):
+def vec_add(a: Tuple[float, float], b: Tuple[float, float]) -> Tuple:
     """Add two vectors together."""
     # Used to combine movement or steering effects.
     return (a[0]+b[0], a[1]+b[1])
 
-def vec_mul(v, scalar):
+def vec_mul(v: Tuple[float, float], scalar: float) -> Tuple:
     """Multiply a vector by a scalar number."""
     # This scales a direction vector to a desired speed or force magnitude.
     return (v[0]*scalar, v[1]*scalar)
 
-def vec_lim(v, max_value):
+def vec_lim(v: Tuple[float, float], max_value: float) -> Tuple:
     """Limit the magnitude (length) of a vector to a maximum value."""
     length = length(v)
     if length > max_value:
