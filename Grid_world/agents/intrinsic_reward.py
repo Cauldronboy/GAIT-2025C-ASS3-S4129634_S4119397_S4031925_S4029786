@@ -1,11 +1,4 @@
-"""
-Intrinsic reward mechanism for exploration.
-
-Implements count-based exploration bonus:
-    intrinsic_reward = 1 / sqrt(n(s))
-
-Where n(s) is the number of times state s has been visited in current episode.
-"""
+"""Intrinsic reward mechanism for exploration."""
 
 import math
 from typing import Dict, Tuple
@@ -28,12 +21,7 @@ class IntrinsicRewardTracker:
         self.episode_visits.clear()
     
     def visit_state(self, state: Tuple):
-        """
-        Record a visit to state.
-        
-        Args:
-            state: State tuple
-        """
+        """Record a visit to state."""
         self.episode_visits[state] += 1
         self.total_visits[state] += 1
     
@@ -46,43 +34,19 @@ class IntrinsicRewardTracker:
             return 1.0 / math.sqrt(n)
     
     def get_combined_reward(self, state: Tuple, env_reward: float) -> float:
-        """
-        Get combined environment + intrinsic reward.
-        
-        Args:
-            state: State tuple
-            env_reward: Reward from environment
-        
-        Returns:
-            Total reward (environment + intrinsic)
-        """
+        """Get combined environment + intrinsic reward."""
         intrinsic = self.get_intrinsic_reward(state)
         return env_reward + intrinsic
     
     def get_visit_count(self, state: Tuple, total: bool = False) -> int:
-        """
-        Get number of visits to state.
-        
-        Args:
-            state: State tuple
-            total: If True, return total visits across all episodes
-                   If False, return visits in current episode
-        
-        Returns:
-            Visit count
-        """
+        """Get number of visits to state."""
         if total:
             return self.total_visits.get(state, 0)
         else:
             return self.episode_visits.get(state, 0)
     
     def get_exploration_coverage(self) -> Dict[str, float]:
-        """
-        Get exploration statistics.
-        
-        Returns:
-            Dictionary with exploration metrics
-        """
+        """Get exploration statistics."""
         unique_states = len(self.total_visits)
         total_visits = sum(self.total_visits.values())
         
@@ -106,16 +70,7 @@ class IntrinsicQLearningAgent:
     def __init__(self, alpha: float = 0.1, gamma: float = 0.99,
                  epsilon_start: float = 1.0, epsilon_end: float = 0.01,
                  epsilon_decay_episodes: int = 1000):
-        """
-        Initialize Q-Learning agent with intrinsic rewards.
-        
-        Args:
-            alpha: Learning rate
-            gamma: Discount factor
-            epsilon_start: Initial exploration rate
-            epsilon_end: Final exploration rate
-            epsilon_decay_episodes: Episodes over which to decay epsilon
-        """
+        """ Initialize Q-Learning agent with intrinsic rewards. """
         # Import here to avoid circular dependency
         from .q_learning import QLearningAgent
         
@@ -141,16 +96,7 @@ class IntrinsicQLearningAgent:
     
     def update(self, state: Tuple, action: int, env_reward: float, 
                next_state: Tuple, done: bool):
-        """
-        Update with intrinsic reward.
-        
-        Args:
-            state: Current state
-            action: Action taken
-            env_reward: Environment reward
-            next_state: Next state
-            done: Whether episode ended
-        """
+        """ Update with intrinsic reward. """
         # Record visit to next state
         self.intrinsic_tracker.visit_state(next_state)
         
@@ -179,16 +125,7 @@ class IntrinsicSARSAAgent:
     def __init__(self, alpha: float = 0.1, gamma: float = 0.99,
                  epsilon_start: float = 1.0, epsilon_end: float = 0.01,
                  epsilon_decay_episodes: int = 1000):
-        """
-        Initialize SARSA agent with intrinsic rewards.
-        
-        Args:
-            alpha: Learning rate
-            gamma: Discount factor
-            epsilon_start: Initial exploration rate
-            epsilon_end: Final exploration rate
-            epsilon_decay_episodes: Episodes over which to decay epsilon
-        """
+        """Initialize SARSA agent with intrinsic rewards."""
         # Import here to avoid circular dependency
         from .sarsa import SARSAAgent
         
@@ -214,17 +151,7 @@ class IntrinsicSARSAAgent:
     
     def update(self, state: Tuple, action: int, env_reward: float, 
                next_state: Tuple, next_action: int, done: bool):
-        """
-        Update with intrinsic reward.
-        
-        Args:
-            state: Current state
-            action: Action taken
-            env_reward: Environment reward
-            next_state: Next state
-            next_action: Next action
-            done: Whether episode ended
-        """
+        """ Update with intrinsic reward. """
         # Record visit to next state
         self.intrinsic_tracker.visit_state(next_state)
         
