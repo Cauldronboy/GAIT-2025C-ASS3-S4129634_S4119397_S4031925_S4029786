@@ -141,6 +141,7 @@ class Arena:
             - orientation is shot direction\n
         - Distance and direction to nearest enemy (float and tuple, seperate x, y)\n
         - Distance and direction to nearest spawner (float and tuple, seperate x, y)\n
+        - Distance and direction to nearest enemy bullet (float and tuple, seperate x, y)\n
         - Player health (int)\n
         - Player max health (int)\n
         - Player power (int)\n
@@ -165,6 +166,16 @@ class Arena:
                 closest_spawner_dist = dist
                 closest_spawner = spn
 
+
+        enemy_bullets = [bullet for bullet in self.bullets if bullet.owner != self.agent]
+        closest_enemy_bullet: entities.Spawner = None
+        closest_enemy_bullet_dist: float = float('inf')
+        for bullet in enemy_bullets:
+            dist = vectorHelper.vec_len(self.agent.position, bullet.position)
+            if dist < closest_enemy_bullet_dist:
+                closest_enemy_bullet_dist = dist
+                closest_enemy_bullet = bullet
+
         
         state = (self.agent.position[0], self.agent.position[1], self.agent.velocity[0], self.agent.velocity[1],
                  agent_pointing[0], agent_pointing[1],
@@ -174,6 +185,9 @@ class Arena:
                  closest_spawner_dist,
                  closest_spawner.position[0] if closest_spawner is not None else NO_TARGET_POS,
                  closest_spawner.position[1] if closest_spawner is not None else NO_TARGET_POS,
+                 closest_enemy_bullet_dist,
+                 closest_enemy_bullet.position[0] if closest_spawner is not None else NO_TARGET_POS,
+                 closest_enemy_bullet.position[1] if closest_spawner is not None else NO_TARGET_POS,
                  self.agent.health, self.agent.max_health, self.agent.power, self.difficulty)
         return state
 
