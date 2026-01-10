@@ -80,10 +80,18 @@ def vec_mul(v: Tuple[float, float], scalar: float) -> Tuple:
 
 def vec_lim(v: Tuple[float, float], max_value: float) -> Tuple:
     """Limit the magnitude (length) of a vector to a maximum value."""
-    length = length(v)
+    length = vec_len(v)
     if length > max_value:
         # If it’s too long, shrink it back to the maximum allowed length.
         v = vec_norm(v)
         return (v[0]*max_value, v[1]*max_value)
     # Otherwise return it unchanged.
     return v
+
+def vec_rotate(v: Tuple[float, float], theta: float) -> Tuple:
+    """Rotate the vector by angle, positive is clockwise"""
+    sin_theta = math.sin(theta)
+    cos_theta = math.cos(theta)
+    vx = v[0]
+    vy = v[1]
+    return (vx*cos_theta - vy*sin_theta, vx*sin_theta + vy*cos_theta)
