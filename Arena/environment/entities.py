@@ -6,7 +6,7 @@ import random
 import enum
 from typing import Tuple, List, Set, Dict, Optional
 import vectorHelper
-from arena import hittables, bullets, ARENA_CORNERS, ARENA_WIDTH, ARENA_HEIGHT
+from arena import Arena, ARENA_CORNERS, ARENA_WIDTH, ARENA_HEIGHT
 
 
 # Object hitbox sizes
@@ -18,6 +18,11 @@ SPAWNER_HITBOX_SIZE = 40
 
 # Global variables
 DRAG = 0.1      # How hard acceleration moves against velocity
+
+
+# Spawner spawn what
+SPAWN_SPAWNER = True
+SPAWN_ENEMY = False
 
 
 # Shape sweep collision detection
@@ -100,7 +105,8 @@ class Bullet:
                  direction: Tuple[float, float],
                  owner: Optional["Hittable"] = None,
                  damage: int = 10,
-                 speed: int = 20):
+                 speed: int = 20,
+                 env: Arena = None):
         self.owner = owner
         self.position = position
         self.direction = vectorHelper.vec_norm(direction)
@@ -110,16 +116,17 @@ class Bullet:
                                   position[1] - BULLET_HITBOX_SIZE // 2,
                                   BULLET_HITBOX_SIZE,
                                   BULLET_HITBOX_SIZE)
-        bullets.append(self)
+        self.env = env
+        self.env.bullets.append(self)
     def hit(self, hittable: "Hittable"):
         hittable.take_damage(self.damage)
-        bullets.remove(self)
+        self.env.bullets.remove(self)
     def update(self, dt: float):
         """Update object depending on the time since last update in seconds"""
-        if self not in bullets:
+        if self not in self.env.bullets:
             return
         movement = (self.direction[0] * self.speed * dt, self.direction[1] * self.speed * dt)
-        gottem = rect_sweep(self.hitbox, movement, hittables, exceptions={self.owner} if self.owner else None)
+        gottem = rect_sweep(self.hitbox, movement, self.env.hittables, exceptions={self.owner} if self.owner else None)
         if gottem is not None:
             self.hit(gottem)
             return
@@ -131,7 +138,7 @@ class Bullet:
             self.position[1] < 0 - self.hitbox.height / 2 or
             self.position[1] > ARENA_HEIGHT + self.hitbox.height / 2
            ):
-            bullets.remove(self)
+            self.env.bullets.remove(self)
         self.hitbox.update(int(self.position[0] - self.hitbox.width / 2),
                            int(self.position[1] - self.hitbox.height / 2),
                            self.hitbox.width,
@@ -142,8 +149,9 @@ class Explosion(Bullet):
     def __init__(self, position: Tuple[float, float],
                  owner: Optional["Hittable"] = None,
                  damage: int = 50,
-                 radius: int = 20):
-        super().__init__(position, (0, 0), owner, damage, 0)
+                 radius: int = 20,
+                 env: Arena = None):
+        super().__init__(position, (0, 0), owner, damage, 0, env)
         self.hitbox = pygame.Rect(position[0] - radius,
                                   position[1] - radius,
                                   radius * 2,
@@ -158,9 +166,9 @@ class Explosion(Bullet):
         t = max(0.0, 1.0 - elapsed / self.life_expectancy)
         remaining_damage = self.damage * t
         if current_time - self.start_time >= self.life_expectancy:
-            bullets.remove(self)
+            self.env.bullets.remove(self)
             return
-        feasably_hit = [h for h in hittables if h.hitbox
+        feasably_hit = [h for h in self.env.hittables if h.hitbox
                         and vectorHelper.vec_len(self.position, h.position) <= self.radius + math.hypot(h.hitbox.width/2, h.hitbox.width/2)]
         for hittable in feasably_hit:
             if hittable.hitbox and self.hitbox.colliderect(hittable.hitbox):
@@ -181,13 +189,14 @@ class Explosion(Bullet):
                 hittable.take_damage(int(round(force * dt)))
 
 class Hittable:
-    """Base class for objects that can take damage"""
+    """Base class for objects that can take damage, adds itself to self.env.hittables list"""
     def __init__(
             self, position: Tuple[float, float],
             health: int,
             max_speed: float = 0,
             hitbox: Optional[pygame.Rect] = None,
-            i_time: int = 600):
+            i_time: int = 600,
+            env: Arena = None):
         self.position = position
         self.velocity = (0.0, 0.0)
         self.accel = (0.0, 0.0)
@@ -202,8 +211,9 @@ class Hittable:
         self.i_time = i_time        # Invincibility time after being hit in ms
         self.invincible = False
         self.i_frames_start = -9999
-        # Register self in hittables list
-        hittables.append(self)
+        # Register self in self.env.hittables list
+        self.env = env
+        self.env.hittables.append(self)
     def take_damage(self, amount: int):
         if self.invincible:
             return
@@ -262,19 +272,20 @@ class Hittable:
         """Returns true if health is at or below 0 but not negative infinity"""
         return self.health <= 0 and self.health > float('-inf')
     def destroy(self):
-        """Remove self from hittables list"""
-        if self in hittables:
-            hittables.remove(self)
+        """Remove self from self.env.hittables list"""
+        if self in self.env.hittables:
+            self.env.hittables.remove(self)
 
 class Player(Hittable):
     """Player agent for Arena environment"""
     def __init__(self, position: Tuple[float, float],
-                 angle: float = 0.0):
+                 angle: float = 0.0,
+                 env: Arena = None):
         rect = pygame.Rect(position[0] - PLAYER_HITBOX_SIZE // 2,
                            position[1] - PLAYER_HITBOX_SIZE // 2,
                            PLAYER_HITBOX_SIZE,
                            PLAYER_HITBOX_SIZE)
-        super().__init__(position=position, health=100, max_speed=5.0, hitbox=rect, i_time=600)
+        super().__init__(position=position, health=100, max_speed=5.0, hitbox=rect, i_time=600, env=env)
         self.angle = angle
         self.power = 10
         self.thrust = 0.2
@@ -310,7 +321,7 @@ class Player(Hittable):
         direction = (math.cos(rad), math.sin(rad))
         bullet_start_pos = (self.position[0] + direction[0] * 5,
                             self.position[1] + direction[1] * 5)
-        return Bullet(bullet_start_pos, direction, damage=self.power)
+        return Bullet(bullet_start_pos, direction, damage=self.power, env=self.env)
     def heal(self, amount: int):
         """Heal the player by amount, increasing max health and damage if overheal"""
         # Polygonkind is dead
@@ -355,7 +366,6 @@ enemy_type_modifiers = {
     EnemyTypes.SPAWNCEPTION: {"health": 500.0, "damage": 0.0, "speed": 10.0, "force": 10.0, "size": 500.0, "cooldown": 1000.0, "reward": 300.0},
     EnemyTypes.DIFFICULTY_LONGINUS: {"health": 7000.0, "damage": float('inf'), "speed": 100.0, "force": float('inf'), "size": 800.0, "cooldown": 0.0, "reward": 1000000.0},
 }
-
 SPAWNCEPTION_MAX_ITERATION = 0
 
 class Enemy(Hittable):
@@ -364,7 +374,8 @@ class Enemy(Hittable):
                  difficulty: int = 0,
                  type: EnemyTypes = EnemyTypes.RAMMER,
                  target: Optional["Player"] = None,
-                 iteration: Optional[int] = None):
+                 iteration: Optional[int] = None,
+                 env: Arena = None):
         this_size = int(round(ENEMY_HITBOX_SIZE * (enemy_type_modifiers[type]["size"] / 100.0)))
         rect = pygame.Rect(position[0] - this_size / 2,
                            position[1] - this_size / 2,
@@ -374,7 +385,7 @@ class Enemy(Hittable):
         damage = int(round((1 + difficulty * 1) * (enemy_type_modifiers[type]["damage"] / 100.0)))
         max_speed = (2.0 + difficulty / 20.0) * (enemy_type_modifiers[type]["speed"] / 100.0)
         force = (0.05 + difficulty * 0.01) * (enemy_type_modifiers[type]["force"] / 100.0)
-        super().__init__(position=position, health=health, max_speed=max_speed, hitbox=rect)
+        super().__init__(position=position, health=health, max_speed=max_speed, hitbox=rect, i_time=100, env=env)
         self.difficulty = difficulty
         self.target = target                            # Player
         self.goal: Tuple[float, float] = (0.0, 0.0)     # Positional goal
@@ -386,6 +397,11 @@ class Enemy(Hittable):
         self.cooldown = int(round(max(500, 1000 - difficulty * 500) * (enemy_type_modifiers[type]["cooldown"] / 100.0)))
         if self.type == EnemyTypes.SPAWNCEPTION:
             self.iteration = iteration if iteration is not None else 0
+            self.actual_max_iter = int(round((SPAWNCEPTION_MAX_ITERATION + self.difficulty / 10))) if iteration is not None else 0
+            self.next_iter_difficulty = max(0, self.difficulty-int(self.difficulty*(self.iteration/float(self.actual_max_iter)))) if iteration is not None else 0
+            self.fabricator = Fabricator(spawn_cooldown=self.cooldown,
+                                         last_spawn_time=pygame.time.get_ticks()+500-self.cooldown,
+                                         env=env)
     def shoot(self) -> Optional[Bullet]:
         """Create a bullet moving towards the player"""
         if self.target is None:
@@ -394,11 +410,11 @@ class Enemy(Hittable):
         direction = vectorHelper.vec_norm(to_player)
         bullet_start_pos = (self.position[0] + direction[0] * (self.hitbox.width / 2 + 5),
                             self.position[1] + direction[1] * (self.hitbox.height / 2 + 5))
-        return Bullet(bullet_start_pos, direction, owner=self, damage=self.damage)
+        return Bullet(bullet_start_pos, direction, owner=self, damage=self.damage, env=self.env)
     def explode(self) -> Explosion:
         """Create an explosion at the enemy's position (self-destructing)"""
         self.health = float('-inf')
-        return Explosion(position=self.position, owner=None, damage=self.damage, radius=self.hitbox.width)
+        return Explosion(position=self.position, owner=None, damage=self.damage, radius=self.hitbox.width, env=self.env)
     def achieve_goal(self, current_time):
         direction = vectorHelper.vec_sub(self.goal, self.position)
         distance = vectorHelper.vec_len(direction)
@@ -423,18 +439,13 @@ class Enemy(Hittable):
         # Extra feature of Spawnception
         if self.type == EnemyTypes.SPAWNCEPTION:
             # Scale max iterations based on difficulty
-            actual_max_iter = int(round((SPAWNCEPTION_MAX_ITERATION + self.difficulty / 10)))
-            # Check cooldown
-            if current_time - self.last_cooldownable_action >= self.cooldown:
-                self.last_cooldownable_action = pygame.time.get_ticks()
-                # Spawn another Spawnception if current iteration is less than actual max iteration
-                if self.iteration < actual_max_iter:
-                    # Weaker anti proportional to current iteration
-                    Enemy(position=self.position, difficulty=max(0, self.difficulty-int(self.difficulty*(self.iteration/float(actual_max_iter)))),
-                        type=self.type, target=self.target, iteration=self.iteration+1)
-                else:
-                    Enemy(position=self.position, difficulty=self.difficulty,
-                          type=EnemyTypes.RAMMER, target=self.target)
+            # Spawn another Spawnception if current iteration is less than actual max iteration
+            if self.iteration < self.actual_max_iter:
+                # Weaker anti proportional to current iteration
+                self.fabricator.try_spawn_with_cooldown(self.position, SPAWN_ENEMY, self.next_iter_difficulty,
+                                                        self.target, EnemyTypes.SPAWNCEPTION, self.iteration+1)
+            else:
+                self.fabricator.try_spawn_with_cooldown(self.position, SPAWN_ENEMY, 0, self.target, EnemyTypes.RAMMER)
 
 
     def find_goal(self):
@@ -467,32 +478,87 @@ class Enemy(Hittable):
             self.find_goal()
         super().update(dt)
 
+class Longinus(Enemy):
+    """
+    Bossfight
+    TODO: moveset
+    """
+    pass
+
 class Spawner(Hittable):
     """Enemy spawner object"""
     def __init__(self, position: Tuple[float, float],
-                 difficulty: int = 0):
+                 difficulty: int = 0,
+                 target: Player = None,
+                 env: Arena = None):
         rect = pygame.Rect(position[0] - SPAWNER_HITBOX_SIZE // 2,
                            position[1] - SPAWNER_HITBOX_SIZE // 2,
                            SPAWNER_HITBOX_SIZE,
                            SPAWNER_HITBOX_SIZE)
         health = 100 + difficulty * 10
-        super().__init__(position=position, health=health, hitbox=rect)
-        self.spawn_timer = max(500, 5000 - difficulty * 200) # in ms
-        self.spawn_level = math.floor(math.cbrt(random.randint(0, difficulty ** 2)))
-        self.last_spawn_time = random.randint(0, self.spawn_timer)
-        self.source = Fabricator()
+        super().__init__(position=position, health=health, hitbox=rect, i_time=100, env=env)
+        idx = int(math.cbrt(random.randint(0, difficulty ** 2))) % len(EnemyTypes) # Enemy type value, wrapping around if over
+        self.spawn_type = EnemyTypes(idx)
+        self.difficulty = difficulty
+        self.target = target
+        spawn_timer = max(500, 5000 - difficulty * 200) # in ms
+        last_spawn_time = pygame.time.get_ticks() + random.randint(0, self.spawn_timer)
+        self.source = Fabricator(pos=self.position, spawn_cooldown=spawn_timer, last_spawn_time=last_spawn_time)
     def update(self, dt: float):
         super().update(dt)
         current_time = pygame.time.get_ticks()
-        if current_time - self.last_spawn_time >= self.spawn_timer:
-            self.source.spawn_enemy(self.position)
-            self.last_spawn_time = current_time
+        if self.source.try_spawn_with_cooldown(self.position, SPAWN_ENEMY, self.difficulty, self.target, self.spawn_type):
+            self.destroy()
+        self.last_spawn_time = current_time
 
 class Fabricator:
-    def spawn_enemy(self, position: Tuple[float, float], type: EnemyTypes = EnemyTypes.RAMMER):
+    """
+    The thing doing the actual spawning\n
+    """
+    def __init__(self,spawn_cooldown: int = 5000,
+                 last_spawn_time: int = -999,
+                 env: Arena = None):
+        self.spawn_cooldown = spawn_cooldown
+        self.last_spawn_time = last_spawn_time
+        self.env = env
+    def try_spawn_with_cooldown(self, at_pos: Tuple[float, float], spawn_what = True, difficulty: int = 0,
+                                target: Player = None, type: Optional[EnemyTypes] = None,
+                                iteration: Optional[int] = None) -> bool:
         """
-        Spawn enemy appropriate to level
-        TODO: actually spawn enemy
-        TODO: despawn immediately after spawning a Longinus
+        Only successfully run if current time - last spawn time < spawn cooldown\n
+        Spawn enemy appropriate to level\n
+        Return true only if Longinus is present or if spawning a Longinus\n
+        Only 1 Longinus is present at any time
         """
-        pass
+        current_time = pygame.time.get_ticks()
+        # Interrupt if cooldown is not done
+        if current_time - self.last_spawn_time < self.spawn_cooldown:
+            return False
+        # Set last spawn time to current time
+        self.last_spawn_time =current_time
+
+        # Spawn a spawner and return if spawn_what = SPAWN_SPAWNER
+        if spawn_what == SPAWN_SPAWNER:
+            Spawner(position=at_pos, difficulty=difficulty, target=target, env=self.env)
+            return False
+        # Spawn an enemy if type is not Longinus
+        if type != EnemyTypes.DIFFICULTY_LONGINUS:
+            Enemy(position=at_pos, difficulty=difficulty, type=type, target=target, iteration=iteration, env=self.env)
+            return False
+        else:
+            longinus_present = False
+            for enem in self.env.hittables: 
+                if isinstance(enem, Longinus):
+                    longinus_present = True
+            if not longinus_present:
+                Longinus(position=at_pos, difficulty=difficulty, type=EnemyTypes.DIFFICULTY_LONGINUS,
+                         target=target, env=self.env)
+            return True
+        
+class Teleporter(Fabricator):
+    def __init__(self, pos: Tuple[float, float],
+                 spawn_cooldown = 5000,
+                 last_spawn_time = -999,
+                 env = None):
+        super().__init__(spawn_cooldown, last_spawn_time, env)
+        self.pos = pos
