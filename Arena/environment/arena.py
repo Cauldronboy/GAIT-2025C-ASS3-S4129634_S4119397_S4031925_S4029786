@@ -65,9 +65,9 @@ NO_TARGET_POS = float('inf')
 
 
 class Arena:
-    def __init__(self, arena_size: Tuple[int, int] = (ARENA_WIDTH, ARENA_HEIGHT), difficulty: int = 0):
+    def __init__(self, size: Tuple[int, int] = (ARENA_WIDTH, ARENA_HEIGHT), difficulty: int = 0):
         # Arena info
-        self.arena_size = arena_size
+        self.size = size
         self.difficulty = difficulty
         self.start: Tuple[float, float] = (0, 0)
         # These lists self-update when a new instance is created
@@ -205,6 +205,9 @@ class Arena:
         self.enemies: List[entities.Enemy] = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
         self.alive = not self.agent.out_of_health()
 
+        # Skip the rest if not alive
+        if not self.alive:
+            return
         # If there are no more spawners
         if len(self.spawners) == 0:
             # Only happens if teleporters list is empty
