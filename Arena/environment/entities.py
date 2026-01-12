@@ -370,14 +370,14 @@ class EnemyTypes(enum.Enum):
     DIFFICULTY_LONGINUS = 7
 
 enemy_type_modifiers = {
-    EnemyTypes.RAMMER: {"health": 100.0, "damage": 100.0, "speed": 100.0, "force": 100.0, "size": 100.0, "cooldown": 0.0, "reward": 100.0},
-    EnemyTypes.TANKIER_RAMMER: {"health": 150.0, "damage": 100.0, "speed": 80.0, "force": 80.0, "size": 250.0, "cooldown": 0.0, "reward": 150.0},
-    EnemyTypes.EXPLOSIVE_RAMMER: {"health": 50.0, "damage": 200.0, "speed": 100.0, "force": 120.0, "size": 150.0, "cooldown": 0.0, "reward": 150.0},
-    EnemyTypes.GOTTAGOFAST: {"health": 0.01, "damage": 100.0, "speed": 150.0, "force": 10000.0, "size": 100.0, "cooldown": 0.0, "reward": 120.0},
-    EnemyTypes.PEW_PEW: {"health": 80.0, "damage": 100.0, "speed": 90.0, "force": 90.0, "size": 100.0, "cooldown": 100.0, "reward": 140.0},
-    EnemyTypes.BIG_PEW_PEW: {"health": 120.0, "damage": 150.0, "speed": 80.0, "force": 80.0, "size": 200.0, "cooldown": 120.0, "reward": 180.0},
-    EnemyTypes.SPAWNCEPTION: {"health": 500.0, "damage": 0.0, "speed": 10.0, "force": 10.0, "size": 500.0, "cooldown": 1000.0, "reward": 300.0},
-    EnemyTypes.DIFFICULTY_LONGINUS: {"health": 7000.0, "damage": float('inf'), "speed": 100.0, "force": float('inf'), "size": 800.0, "cooldown": 0.0, "reward": 1000000.0},
+    EnemyTypes.RAMMER:              {"health": 100.0,       "damage": 100.0,        "speed": 100.0, "force": 100.0,         "size": 100.0,          "cooldown": 0.0,        "reward": 100.0},
+    EnemyTypes.TANKIER_RAMMER:      {"health": 150.0,       "damage": 100.0,        "speed": 80.0,  "force": 80.0,          "size": 250.0,          "cooldown": 0.0,        "reward": 150.0},
+    EnemyTypes.EXPLOSIVE_RAMMER:    {"health": 50.0,        "damage": 200.0,        "speed": 100.0, "force": 120.0,         "size": 150.0,          "cooldown": 0.0,        "reward": 150.0},
+    EnemyTypes.GOTTAGOFAST:         {"health": 0.01,        "damage": 100.0,        "speed": 150.0, "force": 10000.0,       "size": 100.0,          "cooldown": 0.0,        "reward": 120.0},
+    EnemyTypes.PEW_PEW:             {"health": 80.0,        "damage": 100.0,        "speed": 90.0,  "force": 90.0,          "size": 100.0,          "cooldown": 100.0,      "reward": 140.0},
+    EnemyTypes.BIG_PEW_PEW:         {"health": 120.0,       "damage": 150.0,        "speed": 80.0,  "force": 80.0,          "size": 200.0,          "cooldown": 120.0,      "reward": 180.0},
+    EnemyTypes.SPAWNCEPTION:        {"health": 500.0,       "damage": 0.0,          "speed": 10.0,  "force": 10.0,          "size": 500.0,          "cooldown": 1000.0,         "reward": 300.0},
+    EnemyTypes.DIFFICULTY_LONGINUS: {"health": 7000.0,      "damage": float('inf'), "speed": 100.0, "force": float('inf'),  "size": 800.0,          "cooldown": 0.0,        "reward": 1000000.0},
 }
 SPAWNCEPTION_MAX_ITERATION = 0
 
