@@ -144,17 +144,16 @@ class ArenaRenderer:
                 # Core
                 pygame.draw.circle(self.screen, (255, 255, 255), b.position, b.hitbox.width/8)
     
-    def draw_hud(self, episode: int, total_episodes: int, step: int, 
-                 epsilon: float, episode_reward: float, algorithm: str = "Q-Learning",
-                 level_name: str = "Level 0", extra_info: str = ""):
+    def draw_hud(self, episode: int, total_episodes: int, step: int,
+                 algorithm: str = "Deep Reinforcement Learning",
+                 difficulty: int = 0, extra_info: str = ""):
         """Draw heads-up display with training stats."""
         y_offset = 8
         line_height = 20
         
         lines = [
-            f"{algorithm} - {level_name}",
+            f"{algorithm} - Difficulty: {difficulty}",
             f"Episode: {episode + 1}/{total_episodes}  Step: {step}",
-            f"Epsilon: {epsilon:.3f}  Reward: {episode_reward:.2f}",
             extra_info if extra_info else "R: reset | ESC: quit"
         ]
         
@@ -165,3 +164,37 @@ class ArenaRenderer:
             else:
                 surface = self.font_small.render(text, True, self.COL_TEXT_DIM)
             self.screen.blit(surface, (10, y_offset + i * line_height))
+
+    def render(self, env: Arena, episode: int = 0, total_episodes: int = 1000,
+               step: int = 0, algorithm: str = "Deep Reinforcement Learning",
+               extra_info: str = ""):
+        """
+        Render complete frame
+        
+        :param env: Arena environment being simulated
+        :type env: Arena
+        :param episode: Current episode number
+        :type episode: int
+        :param total_episodes: Max episode number
+        :type total_episodes: int
+        :param step: Current step
+        :type step: int
+        :param algorithm: Algorithm being used
+        :type algorithm: str
+        :param extra_info: More info as needed
+        :type extra_info: str
+        """
+         # Clear screen
+        self.screen.fill(self.COL_BG)
+
+        self.draw_bullets(env)
+        self.draw_hittables(env)
+        self.draw_hud(episode, total_episodes, step, algorithm, env.difficulty, extra_info)
+
+        # Update display
+        pygame.display.flip()
+
+    def tick(self, fps: int):
+        """Control frame rate."""
+        if self.clock:
+            self.clock.tick(fps)
