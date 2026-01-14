@@ -1,17 +1,15 @@
 """
-Core Arena environment for reinforcement learning.
-Polygonkind is dead
-Area is fuel
-GPU is full
+Core Arena environment for reinforcement learning.\n
+f`Polygonkind is dead\nArea is fuel\nGPU is full`
 """
 
 import pygame
 import math
 import random
+import enum
 from dataclasses import dataclass
 from typing import Tuple, List, Set, Dict, Optional
-import vectorHelper
-import entities
+from environment import vectorHelper
 
 
 # Action sets
@@ -20,29 +18,6 @@ A_NONE, A_SHOOT = 0, 10
 ANTI_CLOCKWISE, CLOCKWISE = 1, -1
 A_1_FORWARD, A_1_LEFT, A_1_RIGHT = 1, 2, 3
 A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT = 1, 2, 3, 4
-
-class Agent(entities.Player):
-    """A Player specialized for training"""
-    def do(self, style, action):
-        """Perform an action"""
-        if action == A_NONE: return
-        if action == A_SHOOT: self.shoot()
-        if style == SPEEN_AND_VROOM:
-            if action == A_1_FORWARD:
-                self.activate_thrust()
-            elif action == A_1_LEFT:
-                self.rotate(ANTI_CLOCKWISE)
-            elif action == A_1_RIGHT:
-                self.rotate(CLOCKWISE)
-        elif style == BORING_4D_PAD:
-            if action == A_2_UP:
-                self.inertial_manipulator_up()
-            elif action == A_2_DOWN:
-                self.inertial_manipulator_down()
-            elif action == A_2_LEFT:
-                self.inertial_manipulator_left()
-            elif action == A_2_RIGHT:
-                self.inertial_manipulator_right()
 
 @dataclass
 class StepResult:
@@ -242,3 +217,28 @@ class Arena:
             done=False,
             info={}
         )
+    
+import environment.entities as entities
+
+class Agent(entities.Player):
+    """A Player specialized for training"""
+    def do(self, style, action):
+        """Perform an action"""
+        if action == A_NONE: return
+        if action == A_SHOOT: self.shoot()
+        if style == SPEEN_AND_VROOM:
+            if action == A_1_FORWARD:
+                self.activate_thrust()
+            elif action == A_1_LEFT:
+                self.rotate(ANTI_CLOCKWISE)
+            elif action == A_1_RIGHT:
+                self.rotate(CLOCKWISE)
+        elif style == BORING_4D_PAD:
+            if action == A_2_UP:
+                self.inertial_manipulator_up()
+            elif action == A_2_DOWN:
+                self.inertial_manipulator_down()
+            elif action == A_2_LEFT:
+                self.inertial_manipulator_left()
+            elif action == A_2_RIGHT:
+                self.inertial_manipulator_right()
