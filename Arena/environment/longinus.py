@@ -1,5 +1,5 @@
 """Longinus gets its own file because of the complexity"""
-from .entities import Bullet, Enemy, EnemyTypes
+import environment.entities as entities
 from typing import Tuple, Dict, List, Optional, Set
 import random
 import enum
@@ -15,7 +15,7 @@ class LonginusPhaseList(enum.Enum):
     LAST_WORD = 6
 
 
-class Danmaku(Bullet):
+class Danmaku(entities.Bullet):
     """Bullet with colors"""
     def __init__(self, position,
                  direction,
@@ -94,14 +94,14 @@ def lines_shot_builder(target_list: List[Dict[str, float]],
                 target_list.append[encode_danmaku_bullet(dist, angle, speed, 2, delay, (color_r, color_g, 0))]
     
 
-class Longinus(Enemy):
+class Longinus(entities.Enemy):
     """
     Bossfight
     TODO: moveset
     """
     def __init__(self, position,
                  difficulty = 0,
-                 type = EnemyTypes.DIFFICULTY_LONGINUS,
+                 type = entities.EnemyTypes.DIFFICULTY_LONGINUS,
                  target = None,
                  iteration = None,
                  env = None):

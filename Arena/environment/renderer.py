@@ -3,14 +3,16 @@
 import pygame
 import math
 from typing import Optional, Tuple, List
-import entities
-import longinus
+import environment.entities as entities
+import environment.longinus as longinus
 from .arena import Arena
-import vectorHelper
+import environment.vectorHelper as vectorHelper
 
 RED     = (255, 0  , 0  )
 GREEN   = (0  , 255, 0  )
 BLUE    = (0  , 0  , 255)
+WHITE   = (255, 255, 255)
+BLACK   = (0  , 0  , 0  )
 
 def change_color_brightness(rgb: Tuple[int, int, int], per: int|float = 100) -> Tuple[int, int, int]:
     """Return an RGB tuple with brightness of `per`%"""
@@ -85,6 +87,20 @@ class ArenaRenderer:
         
         pygame.draw.polygon(self.screen, color, vertices, line_width)
 
+    def draw_health_bar(self, hittable: entities.Hittable):
+        """Draw the health bar of hittable"""
+        max_hp = hittable.max_health
+        hp = hittable.health
+        pos = hittable.position
+        hp_bar_size = hittable.hitbox.width
+        hp_bar_left_top = (pos[0] - hp_bar_size / 2, pos[1] + hp_bar_size / 2 + 5)
+        hp_display_size = hp_bar_size * (hp / max_hp)
+        hp_bar = pygame.Rect(hp_bar_left_top, (6, hp_bar_size))
+        hp_display = pygame.Rect(hp_bar_left_top, (6, hp_display_size))
+        pygame.draw.rect(self.screen, change_color_brightness(BLACK, 25), hp_bar, border_radius=3)
+        pygame.draw.rect(self.screen, GREEN, hp_display, border_radius=3)
+        pygame.draw.rect(self.screen, BLACK, hp_bar, width=1, border_radius=3)
+
     def huskify(self, col_variable):
         """Darkens the color"""
         return change_color_brightness(col_variable, 20)
@@ -93,6 +109,7 @@ class ArenaRenderer:
         """Draw the player"""
         if env.alive:
             self.draw_regular_polygon(env.agent.position, 3, env.agent.angle, env.agent.hitbox.width*1.25, self.COL_AGENT)
+            self.draw_health_bar(env.agent)
         else:
             # Draw husk
             self.draw_regular_polygon(env.agent.position, 3, env.agent.angle, env.agent.hitbox.width*1.25,
@@ -106,10 +123,12 @@ class ArenaRenderer:
                 self.draw_player(env)
             # Draw spawners
             elif isinstance(htb, entities.Spawner):
+                self.draw_health_bar(htb)
                 pygame.draw.circle(self.screen, self.COL_SPAWNER, htb.position,
                                    htb.hitbox.width/math.sqrt(2))
             # Draw enemies
             elif isinstance(htb, entities.Enemy):
+                self.draw_health_bar(htb)
                 point_amount = htb.type.value + 3
                 point_distance = htb.hitbox.width * 1.25 if point_amount == 3 else 0.75 if point_amount == 4 else 0.7
                 self.draw_regular_polygon(htb.position, point_amount, htb.angle, point_distance,
@@ -125,24 +144,17 @@ class ArenaRenderer:
         """Draw everything from the `bullets` list"""
         for b in env.bullets:
             # Draw normal bullets
-            if not isinstance(b, longinus.Danmaku):
-                # Outer edge
-                pygame.draw.circle(self.screen, change_color_saturation(RED, 100), b.position, b.hitbox.width/2)
-                # Mantle
-                pygame.draw.circle(self.screen, change_color_saturation(RED, 200 / 3), b.position, b.hitbox.width * 3/8)
-                # Outer core
-                pygame.draw.circle(self.screen, change_color_saturation(RED, 100 / 3), b.position, b.hitbox.width/4)
-                # Core
-                pygame.draw.circle(self.screen, (255, 255, 255), b.position, b.hitbox.width/8)
-            else:
-                # Outer edge
-                pygame.draw.circle(self.screen, change_color_saturation(b.color, 100), b.position, b.hitbox.width/2)
-                # Mantle
-                pygame.draw.circle(self.screen, change_color_saturation(b.color, 200 / 3), b.position, b.hitbox.width * 3/8)
-                # Outer core
-                pygame.draw.circle(self.screen, change_color_saturation(b.color, 100 / 3), b.position, b.hitbox.width/4)
-                # Core
-                pygame.draw.circle(self.screen, (255, 255, 255), b.position, b.hitbox.width/8)
+            color = RED
+            if isinstance(b, longinus.Danmaku):
+                color = b.color
+            # Outer edge
+            pygame.draw.circle(self.screen, change_color_saturation(color, 100), b.position, b.hitbox.width/2)
+            # Mantle
+            pygame.draw.circle(self.screen, change_color_saturation(color, 200 / 3), b.position, b.hitbox.width * 3/8)
+            # Outer core
+            pygame.draw.circle(self.screen, change_color_saturation(color, 100 / 3), b.position, b.hitbox.width/4)
+            # Core
+            pygame.draw.circle(self.screen, WHITE, b.position, b.hitbox.width/8)
     
     def draw_hud(self, episode: int, total_episodes: int, step: int,
                  algorithm: str = "Deep Reinforcement Learning",
@@ -187,8 +199,8 @@ class ArenaRenderer:
          # Clear screen
         self.screen.fill(self.COL_BG)
 
-        self.draw_bullets(env)
         self.draw_hittables(env)
+        self.draw_bullets(env)
         self.draw_hud(episode, total_episodes, step, algorithm, env.difficulty, extra_info)
 
         # Update display

@@ -5,9 +5,8 @@ import math
 import random
 import enum
 from typing import Tuple, List, Set, Dict, Optional
-import vectorHelper
-from .arena import Arena, ARENA_CORNERS, ARENA_WIDTH, ARENA_HEIGHT
-from longinus import Longinus
+import environment.vectorHelper as vectorHelper
+import environment.arena as arena
 
 
 # Object hitbox sizes
@@ -108,7 +107,7 @@ class Bullet:
                  damage: int = 10,
                  speed: int = 20,
                  size: int = 1,
-                 env: Arena = None):
+                 env: arena.Arena = None):
         self.owner = owner
         self.position = position
         self.direction = vectorHelper.vec_norm(direction)
@@ -137,9 +136,9 @@ class Bullet:
         # If fully out of bounds, remove self
         if (
             self.position[0] < 0 - self.hitbox.width / 2 or
-            self.position[0] > ARENA_WIDTH + self.hitbox.width / 2 or
+            self.position[0] > arena.ARENA_WIDTH + self.hitbox.width / 2 or
             self.position[1] < 0 - self.hitbox.height / 2 or
-            self.position[1] > ARENA_HEIGHT + self.hitbox.height / 2
+            self.position[1] > arena.ARENA_HEIGHT + self.hitbox.height / 2
            ):
             self.env.bullets.remove(self)
         self.hitbox.update(int(self.position[0] - self.hitbox.width / 2),
@@ -153,7 +152,7 @@ class Explosion(Bullet):
                  owner: Optional["Hittable"] = None,
                  damage: int = 50,
                  radius: int = 20,
-                 env: Arena = None):
+                 env: arena.Arena = None):
         super().__init__(position, (0, 0), owner, damage, 0, env)
         self.hitbox = pygame.Rect(position[0] - radius,
                                   position[1] - radius,
@@ -200,7 +199,7 @@ class Hittable:
             max_speed: float = 0,
             hitbox: Optional[pygame.Rect] = None,
             i_time: int = 600,
-            env: Arena = None):
+            env: arena.Arena = None):
         self.position = position
         self.velocity = (0.0, 0.0)
         self.accel = (0.0, 0.0)
@@ -244,9 +243,9 @@ class Hittable:
         # If fully out of bounds, remove self
         if (
             self.position[0] < 0 - self.hitbox.width / 2 or
-            self.position[0] > ARENA_WIDTH + self.hitbox.width / 2 or
+            self.position[0] > arena.ARENA_WIDTH + self.hitbox.width / 2 or
             self.position[1] < 0 - self.hitbox.height / 2 or
-            self.position[1] > ARENA_HEIGHT + self.hitbox.height / 2
+            self.position[1] > arena.ARENA_HEIGHT + self.hitbox.height / 2
            ):
             if isinstance(self, Enemy) and self.type == EnemyTypes.EXPLOSIVE_RAMMER:
                 # Explode before being removed
@@ -302,7 +301,7 @@ class Player(Hittable):
     """Player agent for Arena environment"""
     def __init__(self, position: Tuple[float, float],
                  angle: float = 0.0,
-                 env: Arena = None):
+                 env: arena.Arena = None):
         """`angle` is in degrees"""
         rect = pygame.Rect(position[0] - PLAYER_HITBOX_SIZE // 2,
                            position[1] - PLAYER_HITBOX_SIZE // 2,
@@ -389,7 +388,7 @@ class Enemy(Hittable):
                  type: EnemyTypes = EnemyTypes.RAMMER,
                  target: Optional["Player"] = None,
                  iteration: Optional[int] = None,
-                 env: Arena = None):
+                 env: arena.Arena = None):
         """`angle` is in degrees"""
         this_size = int(round(ENEMY_HITBOX_SIZE * (enemy_type_modifiers[type]["size"] / 100.0)))
         rect = pygame.Rect(position[0] - this_size / 2,
@@ -480,8 +479,8 @@ class Enemy(Hittable):
             # Drift toward the furthest corner of the screen, spawning Rammers periodically
             self.goal: Tuple = None
             longest_dist = 0
-            for corner in ARENA_CORNERS:
-                temp_goal = ARENA_CORNERS[corner]
+            for corner in arena.ARENA_CORNERS:
+                temp_goal = arena.ARENA_CORNERS[corner]
                 dist = vectorHelper.vec_len(self.position, temp_goal)
                 if dist > longest_dist:
                     longest_dist = dist
@@ -504,7 +503,7 @@ class Spawner(Hittable):
     def __init__(self, position: Tuple[float, float],
                  difficulty: int = 0,
                  target: Player = None,
-                 env: Arena = None):
+                 env: arena.Arena = None):
         rect = pygame.Rect(position[0] - SPAWNER_HITBOX_SIZE // 2,
                            position[1] - SPAWNER_HITBOX_SIZE // 2,
                            SPAWNER_HITBOX_SIZE,
@@ -529,7 +528,7 @@ class Fabricator:
     """
     def __init__(self,spawn_cooldown: int = 5000,
                  last_spawn_time: int = -999,
-                 env: Arena = None):
+                 env: arena.Arena = None):
         self.spawn_cooldown = spawn_cooldown
         self.last_spawn_time = last_spawn_time
         self.env = env
@@ -574,3 +573,6 @@ class Teleporter(Fabricator):
                  env = None):
         super().__init__(spawn_cooldown, last_spawn_time, env)
         self.pos = pos
+
+
+from environment.longinus import Longinus
