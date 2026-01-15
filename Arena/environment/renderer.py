@@ -18,18 +18,19 @@ def change_color_brightness(rgb: Tuple[int, int, int], per: int|float = 100) -> 
     """Return an RGB tuple with brightness of `per`%"""
     max_in = max(rgb)
     max_rgb = (int(round(col * 255 / max_in)) for col in rgb)
-    return tuple([int(round(col * per)) for col in max_rgb]) if max_in != 0 else (int(round(per * 255 / 100)), 0, 0)
+    return tuple([int(round(col * per / 100)) for col in max_rgb]) if max_in != 0 else (int(round(per * 255 / 100)), 0, 0)
 
 def change_color_saturation(rgb: Tuple[int, int, int], per: int|float = 100) -> Tuple[int, int, int]:
     """Return an RGB tuple with saturation of `per`%"""
     max_in = max(rgb)
     min_in = min(rgb)
-    c_max_in = max_in / 255 * 100
-    c_min_in = min_in / 255 * 100
+    c_max_in = max_in / 255
+    c_min_in = min_in / 255
     d_col_in = c_max_in - c_min_in
-    sat_in = d_col_in / c_max_in if c_max_in != 0 else 0
+    sat_in = d_col_in / c_max_in * 100 if c_max_in != 0 else 0
     sat_ratio = per / sat_in
-    return tuple([int(round(max_in - (max_in - col) * sat_ratio)) for col in rgb]) if sat_in != 0 else (255, int(round(per * 255 / 100)), int(round(per * 255 / 100)))
+    test = tuple([int(round(max_in - (max_in - col) * sat_ratio)) for col in rgb]) if sat_in != 0 else (255, int(round(per * 255 / 100)), int(round(per * 255 / 100)))
+    return test
 
 
 class ArenaRenderer:
@@ -51,7 +52,7 @@ class ArenaRenderer:
     COL_TEXT_DIM    = (156, 163, 175)
 
     def __init__(self):
-        self.screen = Optional[pygame.Surface] = None
+        self.screen: Optional[pygame.Surface] = None
         self.clock: Optional[pygame.time.Clock] = None
         self.font: Optional[pygame.font.Font] = None
         self.font_small: Optional[pygame.font.Font] = None
@@ -78,7 +79,7 @@ class ArenaRenderer:
         `color`: (red, green, blue, opacity)
         """
         vertices: List[Tuple[float, float]] = []
-        start_point = (radius, 0.0)
+        start_point = (radius + position[0], position[1])
         start_point = vectorHelper.vec_rotate(start_point, angle, position)
         angle_between_vertices = 360.0 / n
         for i in range(n):
@@ -95,8 +96,8 @@ class ArenaRenderer:
         hp_bar_size = hittable.hitbox.width
         hp_bar_left_top = (pos[0] - hp_bar_size / 2, pos[1] + hp_bar_size / 2 + 5)
         hp_display_size = hp_bar_size * (hp / max_hp)
-        hp_bar = pygame.Rect(hp_bar_left_top, (6, hp_bar_size))
-        hp_display = pygame.Rect(hp_bar_left_top, (6, hp_display_size))
+        hp_bar = pygame.Rect(hp_bar_left_top, (hp_bar_size, 6))
+        hp_display = pygame.Rect(hp_bar_left_top, (hp_display_size, 6))
         pygame.draw.rect(self.screen, change_color_brightness(BLACK, 25), hp_bar, border_radius=3)
         pygame.draw.rect(self.screen, GREEN, hp_display, border_radius=3)
         pygame.draw.rect(self.screen, BLACK, hp_bar, width=1, border_radius=3)
@@ -108,7 +109,7 @@ class ArenaRenderer:
     def draw_player(self, env: Arena):
         """Draw the player"""
         if env.alive:
-            self.draw_regular_polygon(env.agent.position, 3, env.agent.angle, env.agent.hitbox.width*1.25, self.COL_AGENT)
+            self.draw_regular_polygon(env.agent.position, 3, env.agent.angle, env.agent.hitbox.width*1.25, WHITE if env.agent.invincible else self.COL_AGENT)
             self.draw_health_bar(env.agent)
         else:
             # Draw husk
@@ -119,26 +120,35 @@ class ArenaRenderer:
         """Draw everything in the `hittables` list"""
         for htb in env.hittables:
             # Draw player
-            if isinstance(htb, entities.Player):
+            if isinstance(htb, entities.Agent):
                 self.draw_player(env)
             # Draw spawners
             elif isinstance(htb, entities.Spawner):
                 self.draw_health_bar(htb)
-                pygame.draw.circle(self.screen, self.COL_SPAWNER, htb.position,
+                pygame.draw.circle(self.screen, WHITE if htb.invincible else self.COL_SPAWNER, htb.position,
                                    htb.hitbox.width/math.sqrt(2))
+                point_amount = htb.spawn_type.value + 3
+                point_distance = htb.hitbox.width / 2 * 1.25 if point_amount == 3 else htb.hitbox.width / 2 * 0.75 if point_amount == 4 else htb.hitbox.width / 2 * 0.7
+                angle = pygame.time.get_ticks() / 50 + math.radians(env.hittables.index(htb))
+                self.draw_regular_polygon(htb.position, point_amount, angle, point_distance,
+                                          WHITE if htb.invincible else self.COL_ENEMIES[htb.spawn_type])
             # Draw enemies
             elif isinstance(htb, entities.Enemy):
                 self.draw_health_bar(htb)
                 point_amount = htb.type.value + 3
-                point_distance = htb.hitbox.width * 1.25 if point_amount == 3 else 0.75 if point_amount == 4 else 0.7
+                point_distance = htb.hitbox.width * 1.25 if point_amount == 3 else htb.hitbox.width * 0.75 if point_amount == 4 else htb.hitbox.width * 0.7
                 self.draw_regular_polygon(htb.position, point_amount, htb.angle, point_distance,
-                                          self.COL_ENEMIES[htb.type])
+                                          WHITE if htb.invincible else self.COL_ENEMIES[htb.type])
             # Draw husks
             elif isinstance(htb, entities.Husk):
-                point_amount = htb.type.value + 3
-                point_distance = htb.hitbox.width * 1.25 if point_amount == 3 else 0.75 if point_amount == 4 else 0.7
-                self.draw_regular_polygon(htb.position, point_amount, htb.angle, point_distance,
-                                          change_color_brightness(self.COL_ENEMIES[htb.type], 20))
+                if htb.type is not None:
+                    point_amount = htb.type.value + 3
+                    point_distance = htb.size * 1.25 if point_amount == 3 else htb.size * 0.75 if point_amount == 4 else htb.size * 0.7
+                    self.draw_regular_polygon(htb.position, point_amount, htb.angle, point_distance,
+                                            self.huskify(self.COL_ENEMIES[htb.type] if htb.type in self.COL_ENEMIES.keys() else self.COL_SPAWNER))
+                else:
+                    pygame.draw.circle(self.screen, self.huskify(self.COL_SPAWNER), htb.position,
+                                   htb.size/math.sqrt(2))
                 
     def draw_bullets(self, env: Arena):
         """Draw everything from the `bullets` list"""
@@ -156,6 +166,21 @@ class ArenaRenderer:
             # Core
             pygame.draw.circle(self.screen, WHITE, b.position, b.hitbox.width/8)
     
+    def draw_teleporter(self, env: Arena):
+        """Draw spawner spawn indicator"""
+        for t in env.teleporters:
+            passed = pygame.time.get_ticks() - t.started
+            og_size = 40 * ((t.spawn_cooldown - passed / 2) / t.spawn_cooldown + 0.5)
+            smaller_r = og_size * math.sqrt(3)/2
+            color_function = (((passed - t.spawn_cooldown + 250) / (250)) ** 2) * 100
+            color_saturation = min(100, max(0, color_function))
+            color = change_color_saturation(RED, color_saturation)
+            pygame.draw.circle(self.screen, color, t.pos, og_size * 1.125, width=1)
+            pygame.draw.circle(self.screen, color, t.pos, smaller_r * 0.875, width=1)
+            self.draw_regular_polygon(t.pos, 6, 90.0 - passed * 0.1, og_size, color, 1)
+            self.draw_regular_polygon(t.pos, 3, 90.0 + passed * 0.1, smaller_r, color, 1)
+            self.draw_regular_polygon(t.pos, 3, 270.0 + passed * 0.1, smaller_r, color, 1)
+
     def draw_hud(self, episode: int, total_episodes: int, step: int,
                  algorithm: str = "Deep Reinforcement Learning",
                  difficulty: int = 0, extra_info: str = ""):
@@ -199,8 +224,10 @@ class ArenaRenderer:
          # Clear screen
         self.screen.fill(self.COL_BG)
 
+        self.draw_teleporter(env)
         self.draw_hittables(env)
         self.draw_bullets(env)
+        extra_info = f"Health: {env.agent.health}/{env.agent.max_health}  Damage: {env.agent.power}"
         self.draw_hud(episode, total_episodes, step, algorithm, env.difficulty, extra_info)
 
         # Update display

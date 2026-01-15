@@ -15,7 +15,7 @@ from environment import vectorHelper
 # Action sets
 SPEEN_AND_VROOM, BORING_4D_PAD = 0, 1
 A_NONE, A_SHOOT = 0, 10
-ANTI_CLOCKWISE, CLOCKWISE = 1, -1
+ANTI_CLOCKWISE, CLOCKWISE = -1, 1
 A_1_FORWARD, A_1_LEFT, A_1_RIGHT = 1, 2, 3
 A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT = 1, 2, 3, 4
 
@@ -28,8 +28,8 @@ class StepResult:
 
 
 # Interaction variables
-ARENA_WIDTH = 1000
-ARENA_HEIGHT = 1000
+ARENA_WIDTH = 800
+ARENA_HEIGHT = 800
 ARENA_CORNERS = {
     "topleft": (0, 0),
     "topright": (1000, 0),
@@ -44,7 +44,7 @@ class Arena:
         # Arena info
         self.size = size
         self.difficulty = difficulty
-        self.start: Tuple[float, float] = (0, 0)
+        self.start: Tuple[float, float] = (ARENA_WIDTH / 2, ARENA_HEIGHT / 2)
         # These lists self-update when a new instance is created
         self.hittables: List[entities.Hittable] = []
         self.bullets: List[entities.Bullet] = []
@@ -53,13 +53,13 @@ class Arena:
         self.last_physic_frame = pygame.time.get_ticks()
 
         # State variables (initialized in reset)
-        self.agent: Agent = Agent(self.start, angle=0.0)
+        self.agent: entities.Agent = entities.Agent(position=self.start, angle=0.0, env=self)
         self.alive: bool = True
         self.step_count: int = 0
 
         # Spawn indication
         self.out_of_spawners = -999
-        self.teleporters: List[entities.Fabricator] = [entities.Teleporter(pos, 0, env=self) for pos in self.select_spawners_positions()]
+        self.teleporters: List[entities.Teleporter] = [entities.Teleporter(pos, 0, env=self) for pos in self.select_spawners_positions()]
         # Destruction objectives
         self.try_spawning_spawners()
         self.spawners: List[entities.Spawner] = [spn for spn in self.hittables if isinstance(spn, entities.Spawner)]
@@ -71,7 +71,7 @@ class Arena:
 
         self.last_physic_frame = pygame.time.get_ticks()
 
-        self.agent = Agent(self.start, angle=0.0)
+        self.agent = entities.Agent(self.start, angle=0.0)
         self.alive = True
         self.step_count = 0
 
@@ -89,7 +89,9 @@ class Arena:
         spawn_padding = 80
         positions: List[Tuple] = []
         for i in range(amount):
-            rand_pos = None
+            rand_x = random.randint(80, ARENA_WIDTH - spawn_padding)
+            rand_y = random.randint(80, ARENA_HEIGHT - spawn_padding)
+            rand_pos = (float(rand_x), float(rand_y))
             # Select a random position at least 160 units away from agent position
             while vectorHelper.vec_len(rand_pos, self.agent.position) < spawn_padding * 2:
                 rand_x = random.randint(80, ARENA_WIDTH - spawn_padding)
@@ -105,7 +107,6 @@ class Arena:
             return
         for tper in self.teleporters:
             tper.try_spawn_with_cooldown(tper.pos, entities.SPAWN_SPAWNER, self.difficulty, self.agent)
-        self.difficulty += 1
 
     def encode_state(self) -> Tuple:
         """
@@ -161,8 +162,8 @@ class Arena:
                  closest_spawner.position[0] if closest_spawner is not None else NO_TARGET_POS,
                  closest_spawner.position[1] if closest_spawner is not None else NO_TARGET_POS,
                  closest_enemy_bullet_dist,
-                 closest_enemy_bullet.position[0] if closest_spawner is not None else NO_TARGET_POS,
-                 closest_enemy_bullet.position[1] if closest_spawner is not None else NO_TARGET_POS,
+                 closest_enemy_bullet.position[0] if closest_enemy_bullet is not None else NO_TARGET_POS,
+                 closest_enemy_bullet.position[1] if closest_enemy_bullet is not None else NO_TARGET_POS,
                  self.agent.health, self.agent.max_health, self.agent.power, self.difficulty)
         return state
 
@@ -174,7 +175,7 @@ class Arena:
             b.update(dt)
         for h in self.hittables[:]:
             h.update(dt)
-        
+
         # Updating frame
         self.spawners: List[entities.Spawner] = [spn for spn in self.hittables if isinstance(spn, entities.Spawner)]
         self.enemies: List[entities.Enemy] = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
@@ -187,16 +188,17 @@ class Arena:
         if len(self.spawners) == 0:
             # Only happens if teleporters list is empty
             if len(self.teleporters) == 0:
+                self.difficulty += 1
                 # Time that spawners ran out
                 self.out_of_spawners = pygame.time.get_ticks()
                 # Populate teleporters list
-                self.teleporters = [entities.Teleporter(pos, 500, current_time, self) for pos in self.select_spawners_positions()]
+                self.teleporters = [entities.Teleporter(pos, 1000, current_time, self) for pos in self.select_spawners_positions()]
             # Try spawning spawner
             self.try_spawning_spawners()
         else:
             # Clear teleporter list if there are still spawners
             self.teleporters.clear()
-
+        self.last_physic_frame = current_time
     
     def step(self, style = SPEEN_AND_VROOM, action = A_NONE) -> StepResult:
         """
@@ -220,25 +222,3 @@ class Arena:
     
 import environment.entities as entities
 
-class Agent(entities.Player):
-    """A Player specialized for training"""
-    def do(self, style, action):
-        """Perform an action"""
-        if action == A_NONE: return
-        if action == A_SHOOT: self.shoot()
-        if style == SPEEN_AND_VROOM:
-            if action == A_1_FORWARD:
-                self.activate_thrust()
-            elif action == A_1_LEFT:
-                self.rotate(ANTI_CLOCKWISE)
-            elif action == A_1_RIGHT:
-                self.rotate(CLOCKWISE)
-        elif style == BORING_4D_PAD:
-            if action == A_2_UP:
-                self.inertial_manipulator_up()
-            elif action == A_2_DOWN:
-                self.inertial_manipulator_down()
-            elif action == A_2_LEFT:
-                self.inertial_manipulator_left()
-            elif action == A_2_RIGHT:
-                self.inertial_manipulator_right()

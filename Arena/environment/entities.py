@@ -12,12 +12,12 @@ import environment.arena as arena
 # Object hitbox sizes
 PLAYER_HITBOX_SIZE = 20
 BULLET_HITBOX_SIZE = 8
-ENEMY_HITBOX_SIZE = 20
+ENEMY_HITBOX_SIZE = 10
 SPAWNER_HITBOX_SIZE = 40
 
 
 # Global variables
-DRAG = 0.1      # How hard acceleration moves against velocity
+FRIC_COEF = 0.9      # How much velocity deteriorate every 1 second
 
 
 # Spawner spawn what
@@ -51,6 +51,10 @@ def rect_sweep(
     for not_fren in not_friendlies:
         box = not_fren.hitbox
 
+        if rect.colliderect(box):
+            earliest_t = -1
+            hit_object = not_fren
+
         # Select x entry and exit distances
         if vx > 0:
             x_entry = box.left - rect.right
@@ -69,6 +73,8 @@ def rect_sweep(
 
         # Calculate entry and exit times
         if vx == 0:
+            if rect.right <= box.left or rect.left >= box.right:
+                continue  # no overlap on X → no collision
             tx_entry = -math.inf
             tx_exit  = math.inf
         else:
@@ -76,6 +82,8 @@ def rect_sweep(
             tx_exit  = x_exit / vx
 
         if vy == 0:
+            if rect.bottom <= box.top or rect.top >= box.bottom:
+                continue  # no overlap on Y → no collision
             ty_entry = -math.inf
             ty_exit  = math.inf
         else:
@@ -105,7 +113,7 @@ class Bullet:
                  direction: Tuple[float, float],
                  owner: Optional["Hittable"] = None,
                  damage: int = 10,
-                 speed: int = 20,
+                 speed: int = 200,
                  size: int = 1,
                  env: arena.Arena = None):
         self.owner = owner
@@ -153,7 +161,7 @@ class Explosion(Bullet):
                  damage: int = 50,
                  radius: int = 20,
                  env: arena.Arena = None):
-        super().__init__(position, (0, 0), owner, damage, 0, env)
+        super().__init__(position, (0, 0), owner, damage, 0, 1, env)
         self.hitbox = pygame.Rect(position[0] - radius,
                                   position[1] - radius,
                                   radius * 2,
@@ -161,16 +169,18 @@ class Explosion(Bullet):
         self.life_expectancy = 500    # milliseconds
         self.start_time = pygame.time.get_ticks()
         self.radius = radius
+        self.already_hit = []
     def update(self, dt: float):
         """Update object depending on the time since last update in seconds"""
         current_time = pygame.time.get_ticks()
         elapsed = current_time - self.start_time
-        t = max(0.0, 1.0 - elapsed / self.life_expectancy)
-        remaining_damage = self.damage * t
         if current_time - self.start_time >= self.life_expectancy:
             self.env.bullets.remove(self)
             return
-        feasably_hit = [h for h in self.env.hittables if h.hitbox
+        
+        not_hit = [h for h in self.env.hittables if h not in self.already_hit]
+
+        feasably_hit = [h for h in not_hit if h.hitbox
                         and vectorHelper.vec_len(self.position, h.position) <= self.radius + math.hypot(h.hitbox.width/2, h.hitbox.width/2)]
         for hittable in feasably_hit:
             if hittable.hitbox and self.hitbox.colliderect(hittable.hitbox):
@@ -181,14 +191,14 @@ class Explosion(Bullet):
                 dist = max(1e-6, vectorHelper.vec_len(self.position, hittable.position))
                 falloff = (self.radius / 2) / ((dist + 1.0) ** 2)
 
-                force = remaining_damage * falloff
+                force = self.damage * falloff * 50
 
                 # knockback = impulse
-                hittable.pushed((hit_dir[0] * force * dt,
-                                hit_dir[1] * force * dt))
+                hittable.pushed((hit_dir[0] * force,
+                                hit_dir[1] * force))
 
                 # damage proportional to acceleration
-                hittable.take_damage(int(round(force * dt)))
+                hittable.take_damage(self.damage)
 
 class Hittable:
     """Base class for objects that can take damage, adds itself to self.env.hittables list"""
@@ -228,11 +238,18 @@ class Hittable:
     def update(self, dt: float):
         """Update object depending on the time since last update in seconds"""
         if self.out_of_health():
+            if isinstance(self, Spawner) or isinstance(self, Enemy):
+                self.reward_player()
+            if isinstance(self, Enemy) and self.type == EnemyTypes.EXPLOSIVE_RAMMER:
+                self.explode()
             self.destroy()
         if self.invincible:
             current_time = pygame.time.get_ticks()
             if current_time - self.i_frames_start > self.i_time:
                 self.invincible = False
+        # Apply friction
+        friction = vectorHelper.vec_mul(self.velocity, -FRIC_COEF)
+        self.accel = vectorHelper.vec_add(self.accel, friction)
         # Update velocity
         self.velocity = (self.velocity[0] + self.accel[0] * dt,
                          self.velocity[1] + self.accel[1] * dt)
@@ -241,7 +258,7 @@ class Hittable:
         self.position = (self.position[0] + self.velocity[0] * dt,
                          self.position[1] + self.velocity[1] * dt)
         # If fully out of bounds, remove self
-        if (
+        if not isinstance(self, Husk) and (
             self.position[0] < 0 - self.hitbox.width / 2 or
             self.position[0] > arena.ARENA_WIDTH + self.hitbox.width / 2 or
             self.position[1] < 0 - self.hitbox.height / 2 or
@@ -251,10 +268,12 @@ class Hittable:
                 # Explode before being removed
                 self.explode()
             self.destroy()
+            if isinstance(self, Player):
+                self.health = 0
         # Stop if velocity is very low
-        if abs(self.velocity[0]) < 0.01:
+        if abs(self.velocity[0]) < 1:
             self.velocity = (0.0, self.velocity[1])
-        if abs(self.velocity[1]) < 0.01:
+        if abs(self.velocity[1]) < 1:
             self.velocity = (self.velocity[0], 0.0)
 
         if self.hitbox is not None:
@@ -264,7 +283,7 @@ class Hittable:
                                self.hitbox.width,
                                self.hitbox.height)
         # Reset acceleration for next frame
-        self.accel = vectorHelper.vec_add(self.accel, vectorHelper.vec_mul(self.velocity, -DRAG))
+        self.accel = (0.0, 0.0)
 
     def out_of_health(self) -> bool:
         """Returns true if health is at or below 0 but not negative infinity"""
@@ -273,7 +292,7 @@ class Hittable:
         """Remove self from self.env.hittables list and create a Husk"""
         if self in self.env.hittables:
             self.env.hittables.remove(self)
-        if not isinstance(self, Player):
+        if not isinstance(self, Player) and not isinstance(self, Husk):
             Husk(self.position, self.velocity, self.angle, self.max_speed,
                  self.type if isinstance(self, Enemy) else None, isinstance(self, Spawner), self.env)
 
@@ -289,8 +308,10 @@ class Husk(Hittable):
         super().__init__(position, angle, 200, max_speed, None, 0, env)
         self.velocity = velocity
         if is_spawner:
-            self.type = enum.Enum('CorpseType', names="SPAWNER").SPAWNER
+            self.type = None
+            self.size = SPAWNER_HITBOX_SIZE
         if husk_type is not None:
+            self.size = enemy_type_modifiers[husk_type]["size"] * ENEMY_HITBOX_SIZE / 100
             self.type = husk_type
 
     def update(self, dt):
@@ -307,9 +328,9 @@ class Player(Hittable):
                            position[1] - PLAYER_HITBOX_SIZE // 2,
                            PLAYER_HITBOX_SIZE,
                            PLAYER_HITBOX_SIZE)
-        super().__init__(position, angle, 100, max_speed=5.0, hitbox=rect, i_time=600, env=env)
+        super().__init__(position, angle, 100, max_speed=500.0, hitbox=rect, i_time=600, env=env)
         self.power = 10
-        self.thrust = 0.2
+        self.thrust = 100
         self.rotation_speed = 15.0 # degrees per action
     def rotate(self, rotation_direction: int):
         """Rotate player by rotation_direction (1 clockwise, -1 anti-clockwise)"""
@@ -342,7 +363,7 @@ class Player(Hittable):
         direction = (math.cos(rad), math.sin(rad))
         bullet_start_pos = (self.position[0] + direction[0] * 5,
                             self.position[1] + direction[1] * 5)
-        return Bullet(bullet_start_pos, direction, damage=self.power, env=self.env)
+        return Bullet(bullet_start_pos, direction, owner=self, damage=self.power, env=self.env)
     def heal(self, amount: int):
         """Heal the player by amount, increasing max health and damage if overheal"""
         # Polygonkind is dead
@@ -351,12 +372,35 @@ class Player(Hittable):
         self.health += amount
         if self.health > self.max_health:
             overheal = self.health - self.max_health
-            self.max_health += int(overheal / 10)
+            self.max_health += int(overheal / 10 / (self.max_health / 100))
             self.health = self.max_health
-            self.power += int(overheal / 20)        # Harder to increase power
+            self.power += int(overheal / 20 / (self.power / 10))        # Harder to increase power
     def update(self, dt: float):
         # Update invincibility frames
         super().update(dt)
+
+class Agent(Player):
+    """A Player specialized for training"""
+    def do(self, style, action):
+        """Perform an action"""
+        if action == arena.A_NONE: return
+        if action == arena.A_SHOOT: self.shoot()
+        if style == arena.SPEEN_AND_VROOM:
+            if action == arena.A_1_FORWARD:
+                self.activate_thrust()
+            elif action == arena.A_1_LEFT:
+                self.rotate(arena.ANTI_CLOCKWISE)
+            elif action == arena.A_1_RIGHT:
+                self.rotate(arena.CLOCKWISE)
+        elif style == arena.BORING_4D_PAD:
+            if action == arena.A_2_UP:
+                self.inertial_manipulator_up()
+            elif action == arena.A_2_DOWN:
+                self.inertial_manipulator_down()
+            elif action == arena.A_2_LEFT:
+                self.inertial_manipulator_left()
+            elif action == arena.A_2_RIGHT:
+                self.inertial_manipulator_right()
 
 class EnemyTypes(enum.Enum):
     RAMMER = 0
@@ -372,7 +416,7 @@ enemy_type_modifiers = {
     EnemyTypes.RAMMER:              {"health": 100.0,       "damage": 100.0,        "speed": 100.0, "force": 100.0,         "size": 100.0,          "cooldown": 0.0,        "reward": 100.0},
     EnemyTypes.TANKIER_RAMMER:      {"health": 150.0,       "damage": 100.0,        "speed": 80.0,  "force": 80.0,          "size": 250.0,          "cooldown": 0.0,        "reward": 150.0},
     EnemyTypes.EXPLOSIVE_RAMMER:    {"health": 50.0,        "damage": 200.0,        "speed": 100.0, "force": 120.0,         "size": 150.0,          "cooldown": 0.0,        "reward": 150.0},
-    EnemyTypes.GOTTAGOFAST:         {"health": 0.01,        "damage": 100.0,        "speed": 150.0, "force": 10000.0,       "size": 100.0,          "cooldown": 0.0,        "reward": 120.0},
+    EnemyTypes.GOTTAGOFAST:         {"health": 1.0,         "damage": 100.0,        "speed": 150.0, "force": 10000.0,       "size": 100.0,          "cooldown": 0.0,        "reward": 120.0},
     EnemyTypes.PEW_PEW:             {"health": 80.0,        "damage": 100.0,        "speed": 90.0,  "force": 90.0,          "size": 100.0,          "cooldown": 100.0,      "reward": 140.0},
     EnemyTypes.BIG_PEW_PEW:         {"health": 120.0,       "damage": 150.0,        "speed": 80.0,  "force": 80.0,          "size": 200.0,          "cooldown": 120.0,      "reward": 180.0},
     EnemyTypes.SPAWNCEPTION:        {"health": 500.0,       "damage": 0.0,          "speed": 10.0,  "force": 10.0,          "size": 500.0,          "cooldown": 1000.0,         "reward": 300.0},
@@ -397,8 +441,8 @@ class Enemy(Hittable):
                            this_size)
         health = int(round((5 + difficulty * 5) * (enemy_type_modifiers[type]["health"] / 100.0)))
         damage = int(round((1 + difficulty * 1) * (enemy_type_modifiers[type]["damage"] / 100.0)))
-        max_speed = (2.0 + difficulty / 20.0) * (enemy_type_modifiers[type]["speed"] / 100.0)
-        force = (0.05 + difficulty * 0.01) * (enemy_type_modifiers[type]["force"] / 100.0)
+        max_speed = (400.0 + difficulty * 10) * (enemy_type_modifiers[type]["speed"] / 100.0)
+        force = (100 + difficulty) * (enemy_type_modifiers[type]["force"] / 100.0)
         super().__init__(position, angle, health, max_speed=max_speed, hitbox=rect, i_time=100, env=env)
         self.difficulty = difficulty
         self.target = target                            # Player
@@ -429,9 +473,10 @@ class Enemy(Hittable):
     def explode(self) -> Explosion:
         """Create an explosion at the enemy's position (self-destructing)"""
         self.health = float('-inf')
-        return Explosion(position=self.position, owner=None, damage=self.damage, radius=self.hitbox.width, env=self.env)
+        self.destroy()
+        return Explosion(position=self.position, owner=None, damage=self.damage, radius=self.hitbox.width * 5, env=self.env)
     
-    def achieve_goal(self, current_time):
+    def achieve_goal(self, current_time, dt):
         direction = vectorHelper.vec_sub(self.goal, self.position)
         distance = vectorHelper.vec_len(direction)
         direction = vectorHelper.vec_norm(direction)
@@ -440,12 +485,8 @@ class Enemy(Hittable):
             # Explode if close enough (Explosive Rammer only)
             if self.type == EnemyTypes.EXPLOSIVE_RAMMER:
                 distance = vectorHelper.vec_len(vectorHelper.vec_sub(self.target.position, self.position))
-                if distance <= (self.hitbox.width + self.target.hitbox.width / 2):
+                if distance <= (self.hitbox.width * 4):
                     self.explode()
-            gottem = rect_sweep(self.hitbox, self.velocity, [self.env.agent])
-            if gottem is not None:
-                self.take_damage(self.damage)
-                gottem.take_damage(self.damage)
         elif self.type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW}:
             # Firing range
             aim_range = 300 + self.difficulty * 10
@@ -489,13 +530,39 @@ class Enemy(Hittable):
             # How did you get here???
             self.goal = ( 999999.0, 999999.0)
             print("Wrong class")
+        self.angle = vectorHelper.vec_to_ang(vectorHelper.vec_sub(self.goal, self.position))
+    
+    def collide(self, dt):
+        gottem = rect_sweep(self.hitbox, vectorHelper.vec_mul(self.velocity, dt), [self.target])
+        if gottem is not None and gottem.hitbox is not None:
+            self.take_damage(gottem.power if gottem.power is not None else 1)
+            gottem.take_damage(self.damage)
+            # Bounce
+            self_over_gottem_ratio = self.hitbox.width ** 2 / gottem.hitbox.width ** 2
+            gottem_on_self_force = vectorHelper.vec_mul(vectorHelper.vec_sub(gottem.velocity, self.velocity), 1 / self_over_gottem_ratio / 2)
+            self_on_gottem_force = vectorHelper.vec_mul(vectorHelper.vec_sub(self.velocity, gottem.velocity), self_over_gottem_ratio / 2)
+
+            self.velocity = vectorHelper.vec_add(self.velocity, gottem_on_self_force)
+            gottem.velocity = vectorHelper.vec_add(gottem.velocity, self_on_gottem_force)
+
+    def reward_player(self):
+        if self.target is None or not self.health > float('-inf'):
+            return
+        distance = vectorHelper.vec_len(self.position, self.target.position)
+        if distance <= self.hitbox.width:
+            heal_amount = self.target.power * self.reward
+            heal_amount *= self.max_speed / 400
+            heal_amount *= 10 / self.hitbox.width
+            heal_amount *= 1.5 if self.type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW, EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
+            heal_amount *= 2 if self.type in {EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
+            self.target.heal(int(round(heal_amount)))
+
     def update(self, dt: float):
         # If Explosive Rammers run out of health, they explode
-        if self.out_of_health() and self.type == EnemyTypes.EXPLOSIVE_RAMMER:
-            self.explode()
         if self.target is not None:
             self.find_goal()
-        self.achieve_goal()
+        self.collide(dt)
+        self.achieve_goal(pygame.time.get_ticks(), dt)
         super().update(dt)
 
 class Spawner(Hittable):
@@ -515,9 +582,21 @@ class Spawner(Hittable):
         self.difficulty = difficulty
         self.target = target
         spawn_timer = max(500, 5000 - difficulty * 200) # in ms
-        last_spawn_time = pygame.time.get_ticks() + random.randint(0, self.spawn_timer)
-        self.source = Fabricator(pos=self.position, spawn_cooldown=spawn_timer, last_spawn_time=last_spawn_time)
+        last_spawn_time = pygame.time.get_ticks() + random.randint(0, spawn_timer)
+        self.source = Fabricator(spawn_cooldown=spawn_timer, last_spawn_time=last_spawn_time, env=self.env)
+
+    def reward_player(self):
+        if self.target is None:
+            return
+        heal_amount = self.target.power * (self.difficulty + 1) * 2
+        heal_amount *= 10 / self.hitbox.width
+        heal_amount *= 1.5 if self.spawn_type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW, EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
+        heal_amount *= 2 if self.spawn_type in {EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
+        self.target.heal(int(round(heal_amount)))
+
     def update(self, dt: float):
+        if self.out_of_health():
+            self.reward_player()
         super().update(dt)
         if self.source.try_spawn_with_cooldown(self.position, SPAWN_ENEMY, self.difficulty, self.target, self.spawn_type):
             self.destroy()
@@ -573,6 +652,7 @@ class Teleporter(Fabricator):
                  env = None):
         super().__init__(spawn_cooldown, last_spawn_time, env)
         self.pos = pos
+        self.started = pygame.time.get_ticks()
 
 
 from environment.longinus import Longinus

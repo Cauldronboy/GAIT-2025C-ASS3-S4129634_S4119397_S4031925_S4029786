@@ -90,8 +90,8 @@ def vec_lim(v: Tuple[float, float], max_value: float) -> Tuple:
 
 def vec_rotate(v: Tuple[float, float], theta: float, point: Tuple[float, float] = (0, 0)) -> Tuple:
     """Rotate the vector by angle (degrees) around a point, positive is clockwise on Screen"""
-    sin_theta = math.sin(theta)
-    cos_theta = math.cos(theta)
+    sin_theta = math.sin(math.radians(theta))
+    cos_theta = math.cos(math.radians(theta))
     vx = v[0] - point[0]
     vy = v[1] - point[1]
     rotated = (vx*cos_theta - vy*sin_theta, vx*sin_theta + vy*cos_theta)
