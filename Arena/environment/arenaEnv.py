@@ -37,7 +37,7 @@ ARENA_CORNERS = {
     "bottomright": (1000, 1000),
     "bottomleft": (0, 1000)
 }
-NO_TARGET_POS = float('inf')
+NO_TARGET_POS = 10000.0  # Large finite value indicating no target found
 
 
 class ArenaEnv(gym.Env):
@@ -163,7 +163,7 @@ class ArenaEnv(gym.Env):
         agent_pointing = vectorHelper.ang_to_vec(self.agent.angle)
 
         closest_enemy: entities.Enemy = None
-        closest_enemy_dist: float = float('inf')
+        closest_enemy_dist: float = 10000.0
         for enem in self.enemies:
             dist = vectorHelper.vec_len(self.agent.position, enem.position)
             if dist < closest_enemy_dist:
@@ -172,7 +172,7 @@ class ArenaEnv(gym.Env):
         
         
         closest_spawner: entities.Spawner = None
-        closest_spawner_dist: float = float('inf')
+        closest_spawner_dist: float = 10000.0
         for spn in self.spawners:
             dist = vectorHelper.vec_len(self.agent.position, spn.position)
             if dist < closest_spawner_dist:
@@ -182,7 +182,7 @@ class ArenaEnv(gym.Env):
 
         enemy_bullets = [bullet for bullet in self.bullets if bullet.owner != self.agent]
         closest_enemy_bullet: entities.Spawner = None
-        closest_enemy_bullet_dist: float = float('inf')
+        closest_enemy_bullet_dist: float = 10000.0
         for bullet in enemy_bullets:
             dist = vectorHelper.vec_len(self.agent.position, bullet.position)
             if dist < closest_enemy_bullet_dist:
