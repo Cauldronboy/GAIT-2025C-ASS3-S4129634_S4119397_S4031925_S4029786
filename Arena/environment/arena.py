@@ -234,7 +234,7 @@ class Arena:
         if previous_hp > self.agent.health: # Agent loses 1 reward if hit
             reward -= 1
         
-        if previous_maxhp < self.agent.max_health: # Big reward for killing targets, which gives overheal
+        if previous_maxhp < self.agent.max_health: # Incentivize overheal
             reward += (self.agent.max_health - previous_maxhp) * 10 * ((self.difficulty/2) + 1)
         
         if self.agent.out_of_health() == True: # Don't die
@@ -244,7 +244,10 @@ class Arena:
             reward += 10 
 
         # NOTE: Handle score variable
-        # score_diff = self.score - previous_score
+        score_diff = self.score - previous_score
+        if score_diff > 0:
+            reward += score_diff
+            score_diff = 0
 
 
         # Placeholder return
