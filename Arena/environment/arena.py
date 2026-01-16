@@ -213,6 +213,7 @@ class Arena:
 
         float previous_hp = self.agent.health
         float previous_maxhp = self.agent.max_health
+        int previous_difficulty = self.difficulty
 
         # Every single step is a physic frame, meaning the Agent will perform an action every frame
 
@@ -224,11 +225,18 @@ class Arena:
 
         if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
             reward -= 1/240
+        
         if previous_hp >> self.agent.health: # Agent loses 1 reward if hit
             reward -= 1
-        if previous_maxhp << self.agent.max_health:
-            reward += (self.agent.max_health - previous_maxhp) * 10 # Big reward for killing targets, which gives overheal
-
+        
+        if previous_maxhp << self.agent.max_health: # Big reward for killing targets, which gives overheal
+            reward += (self.agent.max_health - previous_maxhp) * 10 * ((difficulty/2) + 1)
+        
+        if self.agent.out_of_health() == True: # Don't die
+            reward -= 20
+            
+        if previous_difficulty << self.difficulty: # Reward for moving to next stage
+            reward += 10 
 
         
 
