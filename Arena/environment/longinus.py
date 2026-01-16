@@ -147,4 +147,4 @@ class Longinus(entities.Enemy):
         shotgun = []                                # Shot container
 
     def update(self, dt):
-        return
+        self.destroy()
