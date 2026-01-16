@@ -257,35 +257,37 @@ class ArenaEnv(gym.Env):
             info: dict with additional info
         """
         # Convert discrete action to style and action pair
-            if self.control_style == SPEEN_AND_VROOM:
-                # Style 1: Rotation + Thrust
-                # 0: no action, 1: thrust, 2: rotate left, 3: rotate right, 4: shoot, 5: ?
-                if action == 1:
-                    action_enum = A_1_FORWARD  # Thrust forward
-                elif action == 2:
-                    action_enum = A_1_LEFT     # Rotate left
-                elif action == 3:
-                    action_enum = A_1_RIGHT    # Rotate right
-                elif action == 4:
-                    action_enum = A_SHOOT
-                else:
-                    action_enum = A_NONE
+            # Style 1: Rotation + Thrust
+            # 0: no action, 1: thrust, 2: rotate left, 3: rotate right, 4: shoot, 5: ?
+        if self.control_style == SPEEN_AND_VROOM:
+            style = SPEEN_AND_VROOM
+            if action == 1:
+                action_enum = A_1_FORWARD  # Thrust forward
+            elif action == 2:
+                action_enum = A_1_LEFT     # Rotate left
+            elif action == 3:
+                action_enum = A_1_RIGHT    # Rotate right
+            elif action == 4:
+                action_enum = A_SHOOT
+            else:
+                action_enum = A_NONE
             
-            elif self.control_style == BORING_4D_PAD:
-                # Style 2: Direct movement
-                # 0: no action, 1: up, 2: down, 3: left, 4: right, 5: shoot
-                if action == 1:
-                    action_enum = A_2_UP
-                elif action == 2:
-                    action_enum = A_2_DOWN
-                elif action == 3:
-                    action_enum = A_2_LEFT
-                elif action == 4:
-                    action_enum = A_2_RIGHT
-                elif action == 5:
-                    action_enum = A_SHOOT
-                else:
-                    action_enum = A_NONE
+        elif self.control_style == BORING_4D_PAD:
+            style = BORING_4D_PAD
+            # Style 2: Direct movement
+            # 0: no action, 1: up, 2: down, 3: left, 4: right, 5: shoot
+            if action == 1:
+                action_enum = A_2_UP
+            elif action == 2:
+                action_enum = A_2_DOWN
+            elif action == 3:
+                action_enum = A_2_LEFT
+            elif action == 4:
+                action_enum = A_2_RIGHT
+            elif action == 5:
+                action_enum = A_SHOOT
+            else:
+                action_enum = A_NONE
         
         # Perform action
         self.agent.do(style=style, action=action_enum)
