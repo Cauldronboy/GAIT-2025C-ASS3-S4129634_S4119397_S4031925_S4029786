@@ -145,3 +145,6 @@ class Longinus(entities.Enemy):
         ps1_sg_burst_line_amount = [3, 5, 7]                                            # Number of lines in a burst
         ps1_sg_burst_delay = [0, 400, 800]                                              # Delay of burst, length is amount of bursts
         shotgun = []                                # Shot container
+
+    def update(self, dt):
+        return
