@@ -226,7 +226,7 @@ class Arena:
         if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
             reward -= 1/240
         
-        if previous_hp >> self.agent.health: # Agent loses 1 reward if hit
+        if previous_hp > self.agent.health: # Agent loses 1 reward if hit
             reward -= 1
         
         if previous_maxhp < self.agent.max_health: # Big reward for killing targets, which gives overheal
