@@ -93,9 +93,9 @@ class ArenaRenderer:
         max_hp = hittable.max_health
         hp = hittable.health
         pos = hittable.position
-        hp_bar_size = hittable.hitbox.width
+        hp_bar_size = hittable.hitbox.width * 2
         hp_bar_left_top = (pos[0] - hp_bar_size / 2, pos[1] + hp_bar_size / 2 + 5)
-        hp_display_size = hp_bar_size * (hp / max_hp)
+        hp_display_size = hp_bar_size * (hp / max_hp if max_hp != 0 else 0)
         hp_bar = pygame.Rect(hp_bar_left_top, (hp_bar_size, 6))
         hp_display = pygame.Rect(hp_bar_left_top, (hp_display_size, 6))
         pygame.draw.rect(self.screen, change_color_brightness(BLACK, 25), hp_bar, border_radius=3)
@@ -172,7 +172,11 @@ class ArenaRenderer:
             passed = pygame.time.get_ticks() - t.started
             og_size = 40 * ((t.spawn_cooldown - passed / 2) / t.spawn_cooldown + 0.5)
             smaller_r = og_size * math.sqrt(3)/2
-            color_function = (((passed - t.spawn_cooldown + 250) / (250)) ** 2) * 100
+            fx = (((passed - t.spawn_cooldown + 300) / 250) ** 2) * 100
+            gx = fx - (passed)
+            hx = gx if fx > (fx - gx) and passed < 500 else 0
+            qx = fx - hx
+            color_function = 0 if qx < 0 else 100 if qx > 100 else qx
             color_saturation = min(100, max(0, color_function))
             color = change_color_saturation(RED, color_saturation)
             pygame.draw.circle(self.screen, color, t.pos, og_size * 1.125, width=1)
