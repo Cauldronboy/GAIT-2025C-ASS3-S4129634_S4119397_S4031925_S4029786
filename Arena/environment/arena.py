@@ -59,6 +59,7 @@ class Arena:
 
         # State variables (initialized in reset)
         self.agent: entities.Agent = entities.Agent(position=self.start, angle=0.0, env=self)
+        self.score: int = 0
         self.alive: bool = True
         self.step_count: int = 0
 
@@ -77,6 +78,7 @@ class Arena:
         self.last_physic_frame = pygame.time.get_ticks()
 
         self.agent = entities.Agent(self.start, angle=0.0)
+        self.score = 0
         self.alive = True
         self.step_count = 0
 
@@ -213,6 +215,7 @@ class Arena:
         done = False
         cd = False
 
+        previous_score = self.score
         previous_hp = self.agent.health
         previous_maxhp = self.agent.max_health
         previous_difficulty = self.difficulty
@@ -240,7 +243,9 @@ class Arena:
         if previous_difficulty < self.difficulty: # Reward for moving to next stage
             reward += 10 
 
-        
+        # NOTE: Handle score variable
+        # score_diff = self.score - previous_score
+
 
         # Placeholder return
         return StepResult(

@@ -561,6 +561,8 @@ class Enemy(Hittable):
             heal_amount *= 1.5 if self.type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW, EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
             heal_amount *= 2 if self.type in {EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
             self.target.heal(int(round(heal_amount)))
+            if self.env is not None:
+                self.env.score += heal_amount
 
     def update(self, dt: float):
         # If Explosive Rammers run out of health, they explode
@@ -598,6 +600,8 @@ class Spawner(Hittable):
         heal_amount *= 1.5 if self.spawn_type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW, EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
         heal_amount *= 2 if self.spawn_type in {EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
         self.target.heal(int(round(heal_amount)))
+        if self.env is not None:
+            self.env.score += heal_amount
 
     def update(self, dt: float):
         if self.out_of_health():
