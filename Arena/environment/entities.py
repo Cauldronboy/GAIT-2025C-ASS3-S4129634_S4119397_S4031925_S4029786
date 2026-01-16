@@ -457,7 +457,7 @@ class Enemy(Hittable):
         self.force = force
         self.reward = int(round(difficulty * (enemy_type_modifiers[type]["reward"] / 100.0)))
         self.last_cooldownable_action = -999
-        self.cooldown = int(round(max(500, 1000 - difficulty * 500) * (enemy_type_modifiers[type]["cooldown"] / 100.0)))
+        self.cooldown = int(round(max(500, 5000 - difficulty * 100) * (enemy_type_modifiers[type]["cooldown"] / 100.0)))
         if self.type == EnemyTypes.SPAWNCEPTION:
             self.iteration = iteration if iteration is not None else 0
             self.actual_max_iter = int(round((SPAWNCEPTION_MAX_ITERATION + self.difficulty / 10))) if iteration is not None else 0
