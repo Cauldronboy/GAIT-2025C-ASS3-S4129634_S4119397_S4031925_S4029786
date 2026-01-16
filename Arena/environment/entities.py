@@ -555,7 +555,7 @@ class Enemy(Hittable):
             return
         distance = vectorHelper.vec_len(self.position, self.target.position)
         if distance <= self.hitbox.width * 10:
-            heal_amount = self.target.power * self.reward
+            heal_amount = self.reward * (self.target.power if self.target.power < self.max_health else self.max_health)
             heal_amount *= self.max_speed / 400
             heal_amount *= 10 / self.hitbox.width
             heal_amount *= 1.5 if self.type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW, EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
@@ -595,7 +595,7 @@ class Spawner(Hittable):
     def reward_player(self):
         if self.target is None:
             return
-        heal_amount = self.target.power * (self.difficulty + 1) * 2
+        heal_amount = (self.difficulty + 1) * 2 * (self.target.power if self.target.power < self.max_health else self.max_health)
         heal_amount *= 10 / self.hitbox.width
         heal_amount *= 1.5 if self.spawn_type in {EnemyTypes.PEW_PEW, EnemyTypes.BIG_PEW_PEW, EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
         heal_amount *= 2 if self.spawn_type in {EnemyTypes.SPAWNCEPTION, EnemyTypes.DIFFICULTY_LONGINUS} else 1
