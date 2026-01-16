@@ -5,8 +5,13 @@ import math
 import random
 import enum
 from typing import Tuple, List, Set, Dict, Optional
-import environment.vectorHelper as vectorHelper
-import environment.arena as arena
+
+try:
+    from . import vectorHelper
+    from . import arena
+except ImportError:
+    import vectorHelper
+    import arena
 
 
 # Object hitbox sizes
@@ -655,4 +660,7 @@ class Teleporter(Fabricator):
         self.started = pygame.time.get_ticks()
 
 
-from environment.longinus import Longinus
+try:
+    from .longinus import Longinus
+except ImportError:
+    from longinus import Longinus

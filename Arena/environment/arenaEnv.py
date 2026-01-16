@@ -15,6 +15,10 @@ try:
 except ImportError:
     import vectorHelper
 
+import gymnasium as gym
+import numpy as np
+from gymnasium import spaces
+
 
 # Action sets
 SPEEN_AND_VROOM, BORING_4D_PAD = 0, 1
@@ -22,13 +26,6 @@ A_NONE, A_SHOOT = 0, 10
 ANTI_CLOCKWISE, CLOCKWISE = -1, 1
 A_1_FORWARD, A_1_LEFT, A_1_RIGHT = 1, 2, 3
 A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT = 1, 2, 3, 4
-
-@dataclass
-class StepResult:
-    next_state: Tuple
-    reward: float
-    done: bool
-    info: dict
 
 
 # Interaction variables
@@ -43,39 +40,69 @@ ARENA_CORNERS = {
 NO_TARGET_POS = float('inf')
 
 
-class Arena:
-    def __init__(self, size: Tuple[int, int] = (ARENA_WIDTH, ARENA_HEIGHT), difficulty: int = 0):
+class ArenaEnv(gym.Env):
+    metadata = {"render_modes": ["human"], "render_fps": 60}
+    
+    def __init__(self, control_style=SPEEN_AND_VROOM, size: Tuple[int, int] = (ARENA_WIDTH, ARENA_HEIGHT), difficulty: int = 0, render_mode: str = None):
         # Arena info
         self.size = size
         self.difficulty = difficulty
         self.start: Tuple[float, float] = (ARENA_WIDTH / 2, ARENA_HEIGHT / 2)
+        self.render_mode = render_mode
+        self.control_style = control_style
+        
+        # Define action and observation spaces
+        # Actions: 0=no action, 1=shoot, 2=forward, 3=left, 4=right, 5=backward
+        if self.control_style == SPEEN_AND_VROOM:
+            self.action_space = spaces.Discrete(5)  # 0-4 (no unused action)
+        else:
+            self.action_space = spaces.Discrete(6)  # 0-5
+        
+        # Observation space: 19 elements
+        # [pos_x, pos_y, vel_x, vel_y, point_x, point_y, 
+        #  enemy_dist, enemy_pos_x, enemy_pos_y,
+        #  spawner_dist, spawner_pos_x, spawner_pos_y,
+        #  bullet_dist, bullet_pos_x, bullet_pos_y,
+        #  health, max_health, power, difficulty]
+        self.observation_space = spaces.Box(
+            low=np.array([-np.inf] * 19, dtype=np.float32),
+            high=np.array([np.inf] * 19, dtype=np.float32),
+            dtype=np.float32
+        )
+        
         # These lists self-update when a new instance is created
-        self.hittables: List[entities.Hittable] = []
-        self.bullets: List[entities.Bullet] = []
+        self.hittables: List = []
+        self.bullets: List = []
 
         # Physics helper
         self.last_physic_frame = pygame.time.get_ticks()
 
         # State variables (initialized in reset)
-        self.agent: entities.Agent = entities.Agent(position=self.start, angle=0.0, env=self)
+        self.agent = None
         self.alive: bool = True
         self.step_count: int = 0
 
         # Spawn indication
         self.out_of_spawners = -999
-        self.teleporters: List[entities.Teleporter] = [entities.Teleporter(pos, 0, env=self) for pos in self.select_spawners_positions()]
-        # Destruction objectives
-        self.try_spawning_spawners()
-        self.spawners: List[entities.Spawner] = [spn for spn in self.hittables if isinstance(spn, entities.Spawner)]
-        self.enemies: List[entities.Enemy] = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
-
-    def reset(self) -> Tuple:
+        self.teleporters: List = []
+        self.spawners: List = []
+        self.enemies: List = []
+    
+    def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
+        super().reset(seed=seed)
+        
         self.hittables.clear()
         self.bullets.clear()
 
         self.last_physic_frame = pygame.time.get_ticks()
 
-        self.agent = entities.Agent(self.start, angle=0.0)
+        # Initialize agent (import here to avoid circular imports)
+        try:
+            from . import entities
+        except ImportError:
+            import entities
+        
+        self.agent = entities.Agent(self.start, angle=0.0, env=self)
         self.alive = True
         self.step_count = 0
 
@@ -85,7 +112,8 @@ class Arena:
         self.spawners = [spn for spn in self.hittables if isinstance(spn, entities.Spawner)]
         self.enemies = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
 
-        return self.encode_state()
+        observation = self._get_observation()
+        return observation, {}
 
     def select_spawners_positions(self) -> List[Tuple[float, float]]:
         """Randomly select positions to spawn spawners"""
@@ -104,6 +132,11 @@ class Arena:
             if rand_pos is not None:
                 positions.append(rand_pos)
         return positions
+    
+    def _get_observation(self) -> np.ndarray:
+        """Get current observation as numpy array"""
+        state = self.encode_state()
+        return np.array(state, dtype=np.float32)
     
     def try_spawning_spawners(self):
         """Try spawning spawner with teleporters"""
@@ -204,30 +237,82 @@ class Arena:
             self.teleporters.clear()
         self.last_physic_frame = current_time
     
-    def step(self, style = SPEEN_AND_VROOM, action = A_NONE) -> StepResult:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
-        TODO: Reward function
-        """
-        # Every single step is a physic frame, meaning the Agent will perform an action every frame
-
-        self.agent.do(style=style, action=action)   # Perform an action
+        Execute one step of the environment.
         
+        Args:
+            action: Integer in range [0, 4]
+                0: no action
+                1: shoot
+                2: forward
+                3: left
+                4: right
+        
+        Returns:
+            observation: np.ndarray of current state
+            reward: float reward for this step
+            terminated: bool whether episode ended (agent dead)
+            truncated: bool whether episode was truncated (time limit)
+            info: dict with additional info
+        """
+        # Convert discrete action to style and action pair
+            if self.control_style == SPEEN_AND_VROOM:
+                # Style 1: Rotation + Thrust
+                # 0: no action, 1: thrust, 2: rotate left, 3: rotate right, 4: shoot, 5: ?
+                if action == 1:
+                    action_enum = A_1_FORWARD  # Thrust forward
+                elif action == 2:
+                    action_enum = A_1_LEFT     # Rotate left
+                elif action == 3:
+                    action_enum = A_1_RIGHT    # Rotate right
+                elif action == 4:
+                    action_enum = A_SHOOT
+                else:
+                    action_enum = A_NONE
+            
+            elif self.control_style == BORING_4D_PAD:
+                # Style 2: Direct movement
+                # 0: no action, 1: up, 2: down, 3: left, 4: right, 5: shoot
+                if action == 1:
+                    action_enum = A_2_UP
+                elif action == 2:
+                    action_enum = A_2_DOWN
+                elif action == 3:
+                    action_enum = A_2_LEFT
+                elif action == 4:
+                    action_enum = A_2_RIGHT
+                elif action == 5:
+                    action_enum = A_SHOOT
+                else:
+                    action_enum = A_NONE
+        
+        # Perform action
+        self.agent.do(style=style, action=action_enum)
+        
+        # Update environment
         self.update()
+        
+        # Get new observation
+        observation = self._get_observation()
+        
+        # Calculate reward (placeholder)
+        reward = 0.0
+        
+        # Check termination conditions
+        terminated = not self.alive
+        truncated = False  # TODO: implement step limit if needed
+        
+        info = {"step_count": self.step_count}
+        
+        self.step_count += 1
+        
+        return observation, reward, terminated, truncated, info
 
-        # TODO: Reward function
 
-        # Placeholder return
-        return StepResult(
-            next_state=self.encode_state(),
-            reward=0.0,
-            done=False,
-            info={}
-        )
-
-
-# Import entities after Arena class is defined to avoid circular imports
+# Import entities after ArenaEnv class is defined to avoid circular imports
 try:
     from . import entities
 except ImportError:
     import entities
-
+ 
