@@ -421,7 +421,7 @@ enemy_type_modifiers = {
     EnemyTypes.RAMMER:              {"health": 100.0,       "damage": 100.0,        "speed": 100.0, "force": 100.0,         "size": 100.0,          "cooldown": 0.0,        "reward": 100.0},
     EnemyTypes.TANKIER_RAMMER:      {"health": 150.0,       "damage": 100.0,        "speed": 80.0,  "force": 80.0,          "size": 250.0,          "cooldown": 0.0,        "reward": 150.0},
     EnemyTypes.EXPLOSIVE_RAMMER:    {"health": 50.0,        "damage": 200.0,        "speed": 100.0, "force": 120.0,         "size": 150.0,          "cooldown": 0.0,        "reward": 150.0},
-    EnemyTypes.GOTTAGOFAST:         {"health": 1.0,         "damage": 100.0,        "speed": 150.0, "force": 10000.0,       "size": 100.0,          "cooldown": 0.0,        "reward": 120.0},
+    EnemyTypes.GOTTAGOFAST:         {"health": 20.0,         "damage": 100.0,        "speed": 150.0, "force": 10000.0,       "size": 100.0,          "cooldown": 0.0,        "reward": 120.0},
     EnemyTypes.PEW_PEW:             {"health": 80.0,        "damage": 100.0,        "speed": 90.0,  "force": 90.0,          "size": 100.0,          "cooldown": 100.0,      "reward": 140.0},
     EnemyTypes.BIG_PEW_PEW:         {"health": 120.0,       "damage": 150.0,        "speed": 80.0,  "force": 80.0,          "size": 200.0,          "cooldown": 120.0,      "reward": 180.0},
     EnemyTypes.SPAWNCEPTION:        {"health": 500.0,       "damage": 0.0,          "speed": 10.0,  "force": 10.0,          "size": 500.0,          "cooldown": 1000.0,         "reward": 300.0},
@@ -540,12 +540,12 @@ class Enemy(Hittable):
     def collide(self, dt):
         gottem = rect_sweep(self.hitbox, vectorHelper.vec_mul(self.velocity, dt), [self.target])
         if gottem is not None and gottem.hitbox is not None:
-            self.take_damage(gottem.power if gottem.power is not None else 1)
+            self.take_damage(self.damage)
             gottem.take_damage(self.damage)
             # Bounce
             self_over_gottem_ratio = self.hitbox.width ** 2 / gottem.hitbox.width ** 2
-            gottem_on_self_force = vectorHelper.vec_mul(vectorHelper.vec_sub(gottem.velocity, self.velocity), 1 / self_over_gottem_ratio / 2)
-            self_on_gottem_force = vectorHelper.vec_mul(vectorHelper.vec_sub(self.velocity, gottem.velocity), self_over_gottem_ratio / 2)
+            gottem_on_self_force = vectorHelper.vec_mul(vectorHelper.vec_sub(gottem.velocity, self.velocity), 1 / self_over_gottem_ratio)
+            self_on_gottem_force = vectorHelper.vec_mul(vectorHelper.vec_sub(self.velocity, gottem.velocity), self_over_gottem_ratio)
 
             self.velocity = vectorHelper.vec_add(self.velocity, gottem_on_self_force)
             gottem.velocity = vectorHelper.vec_add(gottem.velocity, self_on_gottem_force)
@@ -554,7 +554,7 @@ class Enemy(Hittable):
         if self.target is None or not self.health > float('-inf'):
             return
         distance = vectorHelper.vec_len(self.position, self.target.position)
-        if distance <= self.hitbox.width:
+        if distance <= self.hitbox.width * 5:
             heal_amount = self.target.power * self.reward
             heal_amount *= self.max_speed / 400
             heal_amount *= 10 / self.hitbox.width

@@ -209,7 +209,9 @@ class Arena:
         """
         TODO: Reward function
         """
-        reward = 0.0, done = False, cd = False
+        reward = 0.0
+        done = False
+        cd = False
 
         previous_hp = self.agent.health
         previous_maxhp = self.agent.max_health
