@@ -283,7 +283,7 @@ class ArenaEnv(gym.Env):
         # TODO: Reward function
 
         if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
-            reward -= 1/240
+            reward -= 0.001
         
         if previous_hp > self.agent.health: # Agent loses 1 reward if hit
             reward -= 1
@@ -296,6 +296,9 @@ class ArenaEnv(gym.Env):
             
         if previous_difficulty < self.difficulty: # Reward for moving to next stage
             reward += 10 
+
+        if self.score > previous_score:
+            reward += 5.0
 
         # NOTE: Handle score variable
         score_diff = self.score - previous_score
@@ -338,6 +341,7 @@ class ArenaEnv(gym.Env):
         
         # Update environment
         self.update()
+
         
         # Get new observation
         observation = self._get_observation()
@@ -352,6 +356,14 @@ class ArenaEnv(gym.Env):
         
         info = {"step_count": self.step_count}
         
+        if not terminated:
+            if action_enum == A_SHOOT:
+                reward += 1.0
+
+            score_diff = self.score - previous_score
+            if score_diff > 0:
+                reward += score_diff * 0.5
+
         self.step_count += 1
         
         return observation, reward, terminated, truncated, info
