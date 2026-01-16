@@ -19,8 +19,8 @@ if __name__ == "__main__":
 
     num_envs = 8
 
-    models1_dir = f"models_control_style_1/PPO-{int(time.time())}"
-    logs1_dir = f"logs_control_style_1/PPO-{int(time.time())}"
+    models1_dir = f"models_control_style_1/PPO"
+    logs1_dir = f"logs_control_style_1/PPO"
 
     if not os.path.exists(models1_dir):
         os.makedirs(models1_dir)
@@ -42,15 +42,16 @@ if __name__ == "__main__":
 
     TIMESTEPS = 25000 // num_envs
     for i in range(1, 40):
-        agent1.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_run{i}")
+        agent1.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name="PPO")
         agent1.save(f"{models1_dir}/PPO_pilotGame_{TIMESTEPS*i}")
 
+    print("Saving final model for agent 1...")
     agent1.save(f"{models1_dir}/PPO_final")
     env1.close()
 
     # Second training agent (Different action space)
-    models2_dir = f"models_control_style_2/PPO-{int(time.time())}"
-    logs2_dir = f"logs_control_style_2/PPO-{int(time.time())}"
+    models2_dir = f"models_control_style_2/PPO"
+    logs2_dir = f"logs_control_style_2/PPO"
 
     if not os.path.exists(models2_dir):
         os.makedirs(models2_dir)
@@ -72,9 +73,10 @@ if __name__ == "__main__":
 
     TIMESTEPS = 25000 // num_envs
     for i in range(1, 40):
-        agent2.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_run{i}")
+        agent2.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name="PPO")
         agent2.save(f"{models2_dir}/PPO_pilotGame_{TIMESTEPS*i}")
 
+    print("Saving final model for agent 2...")
     agent2.save(f"{models2_dir}/PPO_final")
 
     env2.close()

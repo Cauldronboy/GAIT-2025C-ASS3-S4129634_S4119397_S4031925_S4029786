@@ -52,6 +52,8 @@ class ArenaEnv(gym.Env):
         self.start: Tuple[float, float] = (ARENA_WIDTH / 2, ARENA_HEIGHT / 2)
         self.render_mode = render_mode
         self.control_style = control_style
+
+        self.max_steps = 1000
         
         # Define action and observation spaces
         # Actions: 0=no action, 1=shoot, 2=forward, 3=left, 4=right, 5=backward
@@ -278,11 +280,6 @@ class ArenaEnv(gym.Env):
         previous_maxhp = self.agent.max_health
         previous_difficulty = self.difficulty
 
-        # Every single step is a physic frame, meaning the Agent will perform an action every frame
-        self.agent.do(style=self.control_style, action=action)   # Perform an action
-        
-        self.update()
-
         # TODO: Reward function
 
         if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
@@ -344,18 +341,14 @@ class ArenaEnv(gym.Env):
         
         # Get new observation
         observation = self._get_observation()
-        
-        # Calculate reward (placeholder)
-        reward = 0.0
-        
-        # Check termination conditions
-        terminated = not self.alive
-        truncated = False  # TODO: implement step limit if needed
 
-        if terminated or truncated:
-            print("[ArenaEnv] Episode finished",
-                "terminated:", terminated,
-                "truncated:", truncated)
+        truncated = self.step_count >= self.max_steps
+        terminated = not self.alive
+            
+        if terminated:
+            print("Episode ended: TERMINATED")
+        if truncated:
+            print("Episode ended: TRUNCATED")
         
         info = {"step_count": self.step_count}
         
