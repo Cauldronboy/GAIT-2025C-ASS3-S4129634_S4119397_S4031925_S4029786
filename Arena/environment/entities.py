@@ -554,7 +554,7 @@ class Enemy(Hittable):
         if self.target is None or not self.health > float('-inf'):
             return
         distance = vectorHelper.vec_len(self.position, self.target.position)
-        if distance <= self.hitbox.width * 5:
+        if distance <= self.hitbox.width * 10:
             heal_amount = self.target.power * self.reward
             heal_amount *= self.max_speed / 400
             heal_amount *= 10 / self.hitbox.width
