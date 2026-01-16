@@ -1,5 +1,5 @@
 from stable_baselines3.common.env_checker import check_env
-from Arena.environment.arena import Arena
+from environment.arenaEnv import ArenaEnv
 
-env = Arena()
+env = ArenaEnv()
 check_env(env)
