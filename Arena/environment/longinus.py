@@ -49,40 +49,57 @@ class OffsetStyle(enum.Enum):
     RANDOM = 2
 
 # TODO: fix customization options
-def lines_shot_builder(target_list: List[Dict[str, float]],
-                       burst_amount: int = 1, burst_delay: List[int] = [0],
+def lines_shot_builder(bullet_list: List[Dict[str, float]],
+                       
+                       shot_burst_amount: int = 1, shot_burst_delay: List[int] = [0],
                        shot_start: Optional[int] = None, shot_duration: Optional[int] = None,
+
                        burst_line_amount: List[int] = [1],
-                       burst_line_angle_offset_max: float = 0.0,
+                       burst_line_angle_offset_max: List[float] = [0.0],
                        burst_line_angle_offset_style: List[OffsetStyle] = OffsetStyle.EVENLY_SPACED,
                        burst_line_angle_offset: Optional[List[List[float]]] = None,
+
                        burst_line_bullet_amount: int = 1, burst_line_bullet_dist: List[float] = [4.0],
                        randomize_bullet_offset: bool = False, max_bullet_offset: float = 0.0,
                        default_bullet_speed: int = 20, bullet_speed_scale_style: Set[BulletSpeedScaleStyle] = [],
-                       bullet_speed_scale_speed: Tuple[float, float, float] = (1.0, 1.0, 1.0, 1.0)):
+                       bullet_speed_scale_speed: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)):
     """
     Generate and append encoded danmaku bullets to provided target list\n
         Warning: if burst_amount is lower than the length of burst_delay and\n
         burst_line_amount lists, higher indeces will be skipped\n
         However, if burst_amount is higher than said lengths, the list will\n
         wrap around
+    Args:
+        bullet_list: Where bullets are added to
+
+        shot_burst_amount: Amount of bullet bursts of the shot
+        shot_burst_delay: List of delay of each burst, from when the shot was triggered
+        shot_start: Delay of the first burst
+        shot_duration: Duration of the entire shot, from when the shot was triggered
+
+        burst_line_amount: List of line amount for each burst
+        burst_line_angle_offset: List of [List of explicit line offsets]s for each burst
+        burst_line_angle_offset_max: The max angle that a line deviates from the actual target
+        burst_line_angle_offset_style: List of line offset style for each burst
+
     """
     # Interrupt if no target list is provided
-    if target_list is None:
+    if bullet_list is None:
         return
     # If shot duration is provided and burst delay list is empty, calculate burst_delay
-    if shot_duration is not None and len(burst_delay) == 0:
-        burst_delay.clear()
-        for i in range(burst_amount):
-            delay = i * int(shot_duration / burst_amount)
-            burst_delay.append(delay)
+    if shot_duration is not None and len(shot_burst_delay) == 0:
+        shot_burst_delay.clear()
+        for i in range(shot_burst_amount):
+            delay = i * int(shot_duration / shot_burst_amount)
+            shot_burst_delay.append(delay)
     
 
-    for burst_no in range(burst_amount):
-        delay = burst_delay[burst_no % len(burst_delay)]
+    for burst_no in range(shot_burst_amount):
+        delay = shot_burst_delay[burst_no % len(shot_burst_delay)]
         line_amount = burst_line_amount[burst_no % len(burst_line_amount)]
+        line_angle_offset_max = burst_line_angle_offset_max[burst_no % len(burst_line_angle_offset_max)]
         for line in range(line_amount):
-            angle = burst_line_angle_offset_max * line / (line_amount - 1) - burst_line_angle_offset_max / 2
+            angle = burst_line_angle_offset_max * 2 * line / (line_amount - 1) - burst_line_angle_offset_max
             for dist in burst_line_bullet_dist:
                 # Bullet speed scaling
                 speed = default_bullet_speed
@@ -91,7 +108,7 @@ def lines_shot_builder(target_list: List[Dict[str, float]],
                 speed = speed ** (random.random() * 2 * bullet_speed_scale_speed[3]) if BulletSpeedScaleStyle.RANDOM in bullet_speed_scale_style else speed
                 color_r = int(burst_no * 127.5)
                 color_g = int((2 - burst_no) * 127.5)
-                target_list.append[encode_danmaku_bullet(dist, angle, speed, 2, delay, (color_r, color_g, 0))]
+                bullet_list.append[encode_danmaku_bullet(dist, angle, speed, 2, delay, (color_r, color_g, 0))]
     
 
 class Longinus(entities.Enemy):
