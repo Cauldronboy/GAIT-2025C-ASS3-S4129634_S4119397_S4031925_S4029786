@@ -235,7 +235,7 @@ class Arena:
             reward -= 1
         
         if previous_maxhp < self.agent.max_health: # Incentivize overheal
-            reward += (self.agent.max_health - previous_maxhp) * 10 * ((self.difficulty/2) + 1)
+            reward += (self.agent.max_health - previous_maxhp) * 5
         
         if self.agent.out_of_health() == True: # Don't die
             reward -= 20
@@ -246,7 +246,7 @@ class Arena:
         # NOTE: Handle score variable
         score_diff = self.score - previous_score
         if score_diff > 0:
-            reward += score_diff
+            reward += (score_diff / 10)
             score_diff = 0
 
 
