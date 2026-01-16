@@ -10,6 +10,7 @@ import enum
 from dataclasses import dataclass
 from typing import Tuple, List, Set, Dict, Optional
 
+
 try:
     from . import vectorHelper
 except ImportError:
@@ -208,6 +209,11 @@ class Arena:
         """
         TODO: Reward function
         """
+        reward = 0.0, done = False, cd = False
+
+        float previous_hp = self.agent.health
+        float previous_maxhp = self.agent.max_health
+
         # Every single step is a physic frame, meaning the Agent will perform an action every frame
 
         self.agent.do(style=style, action=action)   # Perform an action
@@ -216,10 +222,20 @@ class Arena:
 
         # TODO: Reward function
 
+        if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
+            reward -= 1/240
+        if previous_hp >> self.agent.health: # Agent loses 1 reward if hit
+            reward -= 1
+        if previous_maxhp << self.agent.max_health:
+            reward += (self.agent.max_health - previous_maxhp) * 10 # Big reward for killing targets, which gives overheal
+
+
+        
+
         # Placeholder return
         return StepResult(
             next_state=self.encode_state(),
-            reward=0.0,
+            reward=reward,
             done=False,
             info={}
         )
