@@ -169,6 +169,10 @@ class ArenaRenderer:
     def draw_teleporter(self, env: Arena):
         """Draw spawner spawn indicator"""
         for t in env.teleporters:
+            # Skip if spawn_cooldown is 0 to avoid division by zero
+            if t.spawn_cooldown == 0:
+                continue
+            
             passed = pygame.time.get_ticks() - t.started
             og_size = 40 * ((t.spawn_cooldown - passed / 2) / t.spawn_cooldown + 0.5)
             smaller_r = og_size * math.sqrt(3)/2

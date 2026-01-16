@@ -12,8 +12,10 @@ from typing import Tuple, List, Set, Dict, Optional
 
 try:
     from . import vectorHelper
+    from .renderer import ArenaRenderer
 except ImportError:
     import vectorHelper
+    from renderer import ArenaRenderer
 
 import gymnasium as gym
 import numpy as np
@@ -87,6 +89,12 @@ class ArenaEnv(gym.Env):
         self.teleporters: List = []
         self.spawners: List = []
         self.enemies: List = []
+        
+        # Renderer setup
+        self.renderer: Optional[ArenaRenderer] = None
+        if self.render_mode == "human":
+            self.renderer = ArenaRenderer()
+            self.renderer.init_display(self)
     
     def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
         super().reset(seed=seed)
@@ -310,6 +318,21 @@ class ArenaEnv(gym.Env):
         self.step_count += 1
         
         return observation, reward, terminated, truncated, info
+    
+    def render(self):
+        """Render the environment."""
+        if self.render_mode == "human":
+            if self.renderer is None:
+                self.renderer = ArenaRenderer()
+                self.renderer.init_display(self)
+            self.renderer.render(self, step=self.step_count)
+            self.renderer.tick(self.metadata["render_fps"])
+    
+    def close(self):
+        """Close the renderer."""
+        if self.renderer is not None:
+            self.renderer.close()
+            self.renderer = None
 
 
 # Import entities after ArenaEnv class is defined to avoid circular imports
