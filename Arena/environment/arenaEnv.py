@@ -81,6 +81,7 @@ class ArenaEnv(gym.Env):
 
         # State variables (initialized in reset)
         self.agent = None
+        self.score = 0
         self.alive: bool = True
         self.step_count: int = 0
 
@@ -111,6 +112,7 @@ class ArenaEnv(gym.Env):
             import entities
         
         self.agent = entities.Agent(self.start, angle=0.0, env=self)
+        self.score = 0
         self.alive = True
         self.step_count = 0
 
@@ -264,9 +266,46 @@ class ArenaEnv(gym.Env):
             truncated: bool whether episode was truncated (time limit)
             info: dict with additional info
         """
-        # Convert discrete action to style and action pair
-            # Style 1: Rotation + Thrust
-            # 0: no action, 1: thrust, 2: rotate left, 3: rotate right, 4: shoot, 5: ?
+        """
+        TODO: Reward function
+        """
+        reward = 0.0
+        done = False
+        cd = False
+
+        previous_score = self.score
+        previous_hp = self.agent.health
+        previous_maxhp = self.agent.max_health
+        previous_difficulty = self.difficulty
+
+        # Every single step is a physic frame, meaning the Agent will perform an action every frame
+        self.agent.do(style=self.control_style, action=action)   # Perform an action
+        
+        self.update()
+
+        # TODO: Reward function
+
+        if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
+            reward -= 1/240
+        
+        if previous_hp > self.agent.health: # Agent loses 1 reward if hit
+            reward -= 1
+        
+        if previous_maxhp < self.agent.max_health: # Incentivize overheal
+            reward += (self.agent.max_health - previous_maxhp) * 5
+        
+        if self.agent.out_of_health() == True: # Don't die
+            reward -= 20
+            
+        if previous_difficulty < self.difficulty: # Reward for moving to next stage
+            reward += 10 
+
+        # NOTE: Handle score variable
+        score_diff = self.score - previous_score
+        if score_diff > 0:
+            reward += (score_diff / 10)
+            score_diff = 0
+
         if self.control_style == SPEEN_AND_VROOM:
             style = SPEEN_AND_VROOM
             if action == 1:
@@ -312,6 +351,11 @@ class ArenaEnv(gym.Env):
         # Check termination conditions
         terminated = not self.alive
         truncated = False  # TODO: implement step limit if needed
+
+        if terminated or truncated:
+            print("[ArenaEnv] Episode finished",
+                "terminated:", terminated,
+                "truncated:", truncated)
         
         info = {"step_count": self.step_count}
         

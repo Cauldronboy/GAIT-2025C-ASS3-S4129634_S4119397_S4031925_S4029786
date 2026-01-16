@@ -1,50 +1,80 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import SubprocVecEnv
 import os
 import time
 
 # Add the environment
-from environment.arenaEnv import ArenaEnv
+from environment.arenaEnv import ArenaEnv, SPEEN_AND_VROOM, BORING_4D_PAD
 
-models1_dir = f"models_control_style_1/PPO-{int(time.time())}"
-logs1_dir = f"logs_control_style_1/PPO-{int(time.time())}"
+import torch
+torch.set_num_threads(8)
 
-if not os.path.exists(models1_dir):
-    os.makedirs(models1_dir)
-if not os.path.exists(logs1_dir):
-    os.makedirs(logs1_dir)
+if __name__ == "__main__":
+    def make_env(control_style):
+        def _init():
+            return Monitor(ArenaEnv(control_style=control_style))
+        return _init
 
-# Setup the environment
-env1 = ArenaEnv()
-env1.reset()
+    num_envs = 8
 
-agent1 = PPO("MlpPolicy", env1, verbose=1, tensorboard_log=logs1_dir)
+    models1_dir = f"models_control_style_1/PPO-{int(time.time())}"
+    logs1_dir = f"logs_control_style_1/PPO-{int(time.time())}"
 
-TIMESTEPS = 25000
-for i in range(1, 40):
-    agent1.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_run{i}")
-    agent1.save(f"{models1_dir}/PPO_pilotGame_{TIMESTEPS*i}")
+    if not os.path.exists(models1_dir):
+        os.makedirs(models1_dir)
+    if not os.path.exists(logs1_dir):
+        os.makedirs(logs1_dir)
 
-env1.close()
+    # Setup the environment
+    env1 = SubprocVecEnv([make_env(SPEEN_AND_VROOM) for _ in range(num_envs)])
 
-# Second training agent (Different action space)
-models2_dir = f"models_control_style_2/PPO-{int(time.time())}"
-logs2_dir = f"logs_control_style_2/PPO-{int(time.time())}"
+    agent1 = PPO(
+        "MlpPolicy",
+        env1,
+        n_steps=256,        # IMPORTANT with VecEnv
+        batch_size=1024,
+        n_epochs=5,
+        verbose=1,
+        tensorboard_log=logs1_dir
+    )
 
-if not os.path.exists(models2_dir):
-    os.makedirs(models2_dir)
-if not os.path.exists(logs2_dir):
-    os.makedirs(logs2_dir)
+    TIMESTEPS = 25000 // num_envs
+    for i in range(1, 40):
+        agent1.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_run{i}")
+        agent1.save(f"{models1_dir}/PPO_pilotGame_{TIMESTEPS*i}")
 
-# Setup the 2nd environment
-env2 = ArenaEnv()
-env2.reset()
+    agent1.save(f"{models1_dir}/PPO_final")
+    env1.close()
 
-agent2 = PPO("MlpPolicy", env2, verbose=1, tensorboard_log=logs2_dir)
+    # Second training agent (Different action space)
+    models2_dir = f"models_control_style_2/PPO-{int(time.time())}"
+    logs2_dir = f"logs_control_style_2/PPO-{int(time.time())}"
 
-TIMESTEPS = 25000
-for i in range(1, 40):
-    agent2.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_run{i}")
-    agent2.save(f"{models2_dir}/PPO_pilotGame_{TIMESTEPS*i}")
+    if not os.path.exists(models2_dir):
+        os.makedirs(models2_dir)
+    if not os.path.exists(logs2_dir):
+        os.makedirs(logs2_dir)
 
-env2.close()
+    # Setup the 2nd environment
+    env2 = SubprocVecEnv([make_env(BORING_4D_PAD) for _ in range(num_envs)])
+
+    agent2 = PPO(
+        "MlpPolicy",
+        env2,
+        n_steps=256,
+        batch_size=1024,
+        n_epochs=5,
+        verbose=1,
+        tensorboard_log=logs2_dir
+    )
+
+    TIMESTEPS = 25000 // num_envs
+    for i in range(1, 40):
+        agent2.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name=f"PPO_run{i}")
+        agent2.save(f"{models2_dir}/PPO_pilotGame_{TIMESTEPS*i}")
+
+    agent2.save(f"{models2_dir}/PPO_final")
+
+    env2.close()
