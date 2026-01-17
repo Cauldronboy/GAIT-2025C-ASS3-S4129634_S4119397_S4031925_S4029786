@@ -235,7 +235,7 @@ class ArenaEnv(gym.Env):
             # Clear teleporter list if there are still spawners
             self.teleporters.clear()
     
-    def step(self, action: int, fpss = 60) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Execute one step of the environment.
         
@@ -243,7 +243,6 @@ class ArenaEnv(gym.Env):
             action: Integer ranging from 0 to\n
                 control_style = SPEEN_AND_VROOM: 4\n
                 control_style = BORING_4D_PAD: 5
-            fpss: frame per simulated second
         
         Returns:
             observation: np.ndarray of current state
@@ -252,7 +251,7 @@ class ArenaEnv(gym.Env):
             truncated: bool whether episode was truncated (time limit)
             info: dict with additional info
         """
-        dt = 1/fpss
+        dt = 1.0/60.0
 
         previous_score = self.score
         previous_hp = self.agent.health
