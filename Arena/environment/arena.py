@@ -322,7 +322,7 @@ class ArenaEnv(gym.Env):
                     reward += 1 * dt
             for husk in [htb for htb in self.hittables if isinstance(htb, entities.Husk)]:
                 if husk.health >= 190:
-                    reward += 1 * dt
+                    reward += 3 * dt
             
 
             for enem in self.spawners[:]:
