@@ -331,13 +331,13 @@ class ArenaEnv(gym.Env):
         
         return observation, reward, terminated, truncated, info
     
-    def render(self, info: str = ""):
+    def render(self, reset_count, max_reset = -1, info: str = ""):
         """Render the environment."""
         if self.render_mode == "human":
             if self.renderer is None:
                 self.renderer = ArenaRenderer()
                 self.renderer.init_display(self)
-            self.renderer.render(self, step=self.step_count, extra_info=info)
+            self.renderer.render(self, episode=reset_count, total_episodes=max_reset, step=self.step_count, extra_info=info)
             self.renderer.tick(self.metadata["render_fps"])
     
     def close(self):

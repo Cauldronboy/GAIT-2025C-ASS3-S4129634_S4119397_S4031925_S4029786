@@ -15,6 +15,7 @@ print("Environment reset successfully")
 print(f"Initial observation shape: {obs.shape}")
 
 reward_this_ep = 0
+reset_count = 0
 
 # Run a few steps and render
 running = True
@@ -41,12 +42,13 @@ while running:
     if terminated or truncated:
         obs, info = env.reset()
         reward_this_ep = 0
+        reset_count += 1
         print("Episode reset")
     
     extra_info = f"Reward this episode: {reward_this_ep}"
 
     # Render the current state
-    env.render(info=extra_info)
+    env.render(reset_count=reset_count, info=extra_info)
 
 env.close()
 print("Test completed")
