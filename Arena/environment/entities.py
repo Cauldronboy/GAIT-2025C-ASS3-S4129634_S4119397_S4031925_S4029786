@@ -375,7 +375,7 @@ class Player(Hittable):
         self.health += amount
         if self.health > self.max_health:
             overheal = self.health - self.max_health
-            self.max_health += int(overheal / 10 / (self.max_health / 100))
+            self.max_health += int(overheal / 2 / (self.max_health / 100))
             self.health = self.max_health
             self.power += int(overheal / 100 / (self.power / 10))        # Harder to increase power
     def update(self, dt: float):
