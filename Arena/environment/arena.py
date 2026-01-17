@@ -313,19 +313,34 @@ class ArenaEnv(gym.Env):
         
         info = {"step_count": self.step_count}
         
+        
         if not terminated:
-            # Add reward for each enemies hit within the last 100 ms
-            for enem in self.enemies[:]:
+            
+            for enem in self.enemies[:]:        
+            # Add reward for each enemies hit within the last 100 ms    
                 if enem.invincible:
                     reward += 1 * dt
             for husk in [htb for htb in self.hittables if isinstance(htb, entities.Husk)]:
                 if husk.health >= 190:
                     reward += 1 * dt
             
-            # Add reward for each spawner hit within the last 100 ms
+
             for enem in self.spawners[:]:
+                # Copy paste closest spawner calculation from encode state
+                closest_spawner_dist: float = 10000.0
+                dist = vectorHelper.vec_len(self.agent.position, enem.position)
+                if dist < closest_spawner_dist:
+                    closest_spawner_dist = dist
+                    closest_spawner = enem
+                
+                closest_spawner_dir = vectorHelper.vec_to_ang(vectorHelper.vec_sub(closest_spawner.position, self.agent.position))
+                # NOTE: not sure if using angle like this is good or I have to use dot product of 2 vectors
+
                 if enem.invincible:
-                    reward += 10 * dt
+                    reward += 10 * dt # Add reward for each spawner hit within the last 100 ms
+                if self.agent.angle < closest_spawner_dir - 10 or self.agent.angle > closest_spawner_dir + 10:
+                    reward -= 0.2 * dt # Lose reward if not targetting the closest spawner
+
 
         self.step_count += 1
         
