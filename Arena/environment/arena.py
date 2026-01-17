@@ -257,7 +257,9 @@ class ArenaEnv(gym.Env):
         Execute one step of the environment.
         
         Args:
-            action: Variable from action set
+            action: Integer ranging from 0 to\n
+                control_style = SPEEN_AND_VROOM: 4\n
+                control_style = BORING_4D_PAD: 5
         
         Returns:
             observation: np.ndarray of current state
