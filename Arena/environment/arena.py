@@ -283,7 +283,7 @@ class ArenaEnv(gym.Env):
         reward -= 0.1 * dt # Agent loses 0.1 reward every second to discourage doing nothing
         
         if previous_hp > self.agent.health: # Agent loses 1 reward if hit
-            reward -= 1
+            reward -= 4
         
         if previous_maxhp < self.agent.max_health: # Incentivize overheal
             reward += (self.agent.max_health - previous_maxhp) * 5
@@ -292,7 +292,7 @@ class ArenaEnv(gym.Env):
             reward -= 20
             
         if previous_difficulty < self.difficulty: # Reward for moving to next stage
-            reward += 10 
+            reward += 20 
 
         # Add reward according to score increase
         score_diff = self.score - previous_score
@@ -319,10 +319,10 @@ class ArenaEnv(gym.Env):
             for enem in self.enemies[:]:        
             # Add reward for each enemies hit within the last 100 ms    
                 if enem.invincible:
-                    reward += 1 * dt
+                    reward += 5 * dt
             for husk in [htb for htb in self.hittables if isinstance(htb, entities.Husk)]:
                 if husk.health >= 190:
-                    reward += 3 * dt
+                    reward += 10 * dt
             
 
             for enem in self.spawners[:]:
@@ -337,7 +337,7 @@ class ArenaEnv(gym.Env):
                 # NOTE: not sure if using angle like this is good or I have to use dot product of 2 vectors
 
                 if enem.invincible:
-                    reward += 10 * dt # Add reward for each spawner hit within the last 100 ms
+                    reward += 20 * dt # Add reward for each spawner hit within the last 100 ms
                 if self.agent.angle < closest_spawner_dir - 10 or self.agent.angle > closest_spawner_dir + 10:
                     reward -= 0.1 * dt # Lose reward if not targetting the closest spawner
 
