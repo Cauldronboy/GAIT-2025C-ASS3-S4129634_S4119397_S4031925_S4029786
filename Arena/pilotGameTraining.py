@@ -14,7 +14,7 @@ torch.set_num_threads(8)
 if __name__ == "__main__":
     def make_env(control_style):
         def _init():
-            return Monitor(ArenaEnv(control_style=control_style, render_mode="human"))
+            return Monitor(ArenaEnv(control_style=control_style))
         return _init
 
     num_envs = 4

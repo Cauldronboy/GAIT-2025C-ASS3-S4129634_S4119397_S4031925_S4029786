@@ -626,6 +626,7 @@ class Fabricator:
         Only 1 Longinus is present at any time
         """
         current_time = pygame.time.get_ticks()
+        
         # Interrupt if cooldown is not done
         if current_time - self.last_spawn_time < self.spawn_cooldown:
             return False
