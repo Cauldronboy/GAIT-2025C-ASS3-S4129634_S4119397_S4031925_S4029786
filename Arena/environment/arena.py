@@ -320,11 +320,11 @@ class ArenaEnv(gym.Env):
                     closest_enemy = enem
                 # Add reward for each enemies hit within the last 100 ms    
                 if enem.invincible:
-                    reward += 5 * dt
+                    reward += 50 * dt
             # More reward if enemy died
             for husk in [htb for htb in self.hittables if isinstance(htb, entities.Husk)]:
                 if husk.health >= 190:
-                    reward += 10 * dt
+                    reward += 100 * dt
             
             # Lose reward based on how far away agent is pointing from nearest enemy
             if closest_enemy is not None:
@@ -345,7 +345,7 @@ class ArenaEnv(gym.Env):
                     closest_spawner = spwn
                 # Add reward for each spawner hit within the last 100 ms
                 if spwn.invincible:
-                    reward += 20 * dt
+                    reward += 200 * dt
             
             # Lose reward based on how far away agent is pointing from nearest spawner
             if closest_spawner is not None:
