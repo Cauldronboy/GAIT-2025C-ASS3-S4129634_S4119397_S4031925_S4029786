@@ -266,6 +266,11 @@ class ArenaEnv(gym.Env):
             info: dict with additional info
         """
         
+        previous_score = self.score
+        previous_hp = self.agent.health
+        previous_maxhp = self.agent.max_health
+        previous_difficulty = self.difficulty
+        
         # Perform action
         self.agent.do(style=self.control_style, action=action)
         
@@ -276,10 +281,6 @@ class ArenaEnv(gym.Env):
         done = False
         cd = False
 
-        previous_score = self.score
-        previous_hp = self.agent.health
-        previous_maxhp = self.agent.max_health
-        previous_difficulty = self.difficulty
 
         # TODO: Reward function
 
@@ -298,10 +299,7 @@ class ArenaEnv(gym.Env):
         if previous_difficulty < self.difficulty: # Reward for moving to next stage
             reward += 10 
 
-        if self.score > previous_score:
-            reward += 5.0
-
-        # NOTE: Handle score variable
+        # Add reward according to score increase
         score_diff = self.score - previous_score
         if score_diff > 0:
             reward += (score_diff / 10)
@@ -322,13 +320,10 @@ class ArenaEnv(gym.Env):
         info = {"step_count": self.step_count}
         
         if not terminated:
+            # Add reward for each enemies hit within the last 100 ms
             for enem in self.enemies[:]:
                 if enem.invincible:
                     reward += 1.0
-
-            score_diff = self.score - previous_score
-            if score_diff > 0:
-                reward += score_diff * 0.5
 
         self.step_count += 1
         
