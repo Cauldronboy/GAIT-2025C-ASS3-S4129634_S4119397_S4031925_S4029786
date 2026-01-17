@@ -106,6 +106,8 @@ def rect_sweep(
 
     return hit_object
 
+def get_current_time(env: arena.ArenaEnv):
+    return env.step_count * 1000 / 60 if env is not None else 0
 
 # Object classes
 class Bullet:
@@ -168,12 +170,12 @@ class Explosion(Bullet):
                                   radius * 2,
                                   radius * 2)
         self.life_expectancy = 500    # milliseconds
-        self.start_time = pygame.time.get_ticks()
+        self.start_time = get_current_time(self.env)
         self.radius = radius
         self.already_hit = []
     def update(self, dt: float):
         """Update object depending on the time since last update in seconds"""
-        current_time = pygame.time.get_ticks()
+        current_time = get_current_time(self.env)
         elapsed = current_time - self.start_time
         if current_time - self.start_time >= self.life_expectancy:
             self.env.bullets.remove(self)
@@ -232,7 +234,7 @@ class Hittable:
         if self.health < 0:
             self.health = 0
         self.invincible = True
-        self.i_frames_start = pygame.time.get_ticks()
+        self.i_frames_start = get_current_time(self.env)
     def pushed(self, force: Tuple[float, float]):
         self.velocity = (self.velocity[0] + force[0],
                          self.velocity[1] + force[1])
@@ -245,7 +247,7 @@ class Hittable:
                 self.explode()
             self.destroy()
         if self.invincible:
-            current_time = pygame.time.get_ticks()
+            current_time = get_current_time(self.env)
             if current_time - self.i_frames_start > self.i_time:
                 self.invincible = False
         # Apply friction
@@ -293,7 +295,7 @@ class Hittable:
         """Remove self from self.env.hittables list and create a Husk"""
         if self in self.env.hittables:
             self.env.hittables.remove(self)
-        if not isinstance(self, Player) and not isinstance(self, Husk):
+        if not (isinstance(self, Player) or isinstance(self, Agent)) and not isinstance(self, Husk):
             Husk(self.position, self.velocity, self.angle, self.max_speed,
                  self.type if isinstance(self, Enemy) else None, isinstance(self, Spawner), self.env)
 
@@ -375,7 +377,7 @@ class Player(Hittable):
             overheal = self.health - self.max_health
             self.max_health += int(overheal / 10 / (self.max_health / 100))
             self.health = self.max_health
-            self.power += int(overheal / 20 / (self.power / 10))        # Harder to increase power
+            self.power += int(overheal / 100 / (self.power / 10))        # Harder to increase power
     def update(self, dt: float):
         # Update invincibility frames
         super().update(dt)
@@ -459,7 +461,7 @@ class Enemy(Hittable):
             self.actual_max_iter = int(round((SPAWNCEPTION_MAX_ITERATION + self.difficulty / 10))) if iteration is not None else 0
             self.next_iter_difficulty = max(0, self.difficulty-int(self.difficulty*(self.iteration/float(self.actual_max_iter)))) if iteration is not None else 0
             self.fabricator = Fabricator(spawn_cooldown=self.cooldown,
-                                         last_spawn_time=pygame.time.get_ticks()+500-self.cooldown,
+                                         last_spawn_time=get_current_time(self.env)+500-self.cooldown,
                                          env=env)
     def shoot(self) -> Optional[Bullet]:
         """Create a bullet moving towards the player"""
@@ -494,7 +496,7 @@ class Enemy(Hittable):
             if distance <= aim_range and current_time - self.last_cooldownable_action >= self.cooldown:
                 # Shoot at player
                 self.shoot()
-                self.last_cooldownable_action = pygame.time.get_ticks()
+                self.last_cooldownable_action = get_current_time(self.env)
             else:
                 # Move closer to player
                 self.accel = (direction[0] * self.force, direction[1] * self.force)
@@ -565,7 +567,7 @@ class Enemy(Hittable):
         if self.target is not None:
             self.find_goal()
         self.collide(dt)
-        self.achieve_goal(pygame.time.get_ticks(), dt)
+        self.achieve_goal(get_current_time(self.env), dt)
         super().update(dt)
 
 class Spawner(Hittable):
@@ -585,7 +587,7 @@ class Spawner(Hittable):
         self.difficulty = difficulty
         self.target = target
         spawn_timer = max(500, 5000 - difficulty * 200) # in ms
-        last_spawn_time = pygame.time.get_ticks() + random.randint(0, spawn_timer)
+        last_spawn_time = get_current_time(self.env) + random.randint(0, spawn_timer)
         self.source = Fabricator(spawn_cooldown=spawn_timer, last_spawn_time=last_spawn_time, env=self.env)
 
     def reward_player(self):
@@ -625,7 +627,7 @@ class Fabricator:
         Return true only if Longinus is present or if spawning a Longinus\n
         Only 1 Longinus is present at any time
         """
-        current_time = pygame.time.get_ticks()
+        current_time = get_current_time(self.env)
         
         # Interrupt if cooldown is not done
         if current_time - self.last_spawn_time < self.spawn_cooldown:
@@ -642,6 +644,7 @@ class Fabricator:
             Enemy(position=at_pos, difficulty=difficulty, type=type, target=target, iteration=iteration, env=self.env)
             return False
         else:
+            """
             longinus_present = False
             for enem in self.env.hittables: 
                 if isinstance(enem, Longinus):
@@ -649,6 +652,7 @@ class Fabricator:
             if not longinus_present:
                 Longinus(position=at_pos, difficulty=difficulty, type=EnemyTypes.DIFFICULTY_LONGINUS,
                          target=target, env=self.env)
+            """
             return True
         
 class Teleporter(Fabricator):
@@ -658,7 +662,7 @@ class Teleporter(Fabricator):
                  env = None):
         super().__init__(spawn_cooldown, last_spawn_time, env)
         self.pos = pos
-        self.started = pygame.time.get_ticks()
+        self.started = get_current_time(self.env)
 
 
 from environment.longinus import Longinus

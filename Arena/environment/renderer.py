@@ -14,6 +14,9 @@ BLUE    = (0  , 0  , 255)
 WHITE   = (255, 255, 255)
 BLACK   = (0  , 0  , 0  )
 
+def get_current_time(env: Arena):
+    return env.step_count * 1000 / 60 if env is not None else 0
+
 def change_color_brightness(rgb: Tuple[int, int, int], per: int|float = 100) -> Tuple[int, int, int]:
     """Return an RGB tuple with brightness of `per`%"""
     max_in = max(rgb)
@@ -129,7 +132,7 @@ class ArenaRenderer:
                                    htb.hitbox.width/math.sqrt(2))
                 point_amount = htb.spawn_type.value + 3
                 point_distance = htb.hitbox.width / 2 * 1.25 if point_amount == 3 else htb.hitbox.width / 2 * 0.75 if point_amount == 4 else htb.hitbox.width / 2 * 0.7
-                angle = pygame.time.get_ticks() / 50 + math.radians(env.hittables.index(htb))
+                angle = get_current_time(env) / 50 + math.radians(env.hittables.index(htb))
                 self.draw_regular_polygon(htb.position, point_amount, angle, point_distance,
                                           WHITE if htb.invincible else self.COL_ENEMIES[htb.spawn_type])
             # Draw enemies
@@ -173,9 +176,10 @@ class ArenaRenderer:
             if t.spawn_cooldown == 0:
                 continue
             
-            passed = pygame.time.get_ticks() - t.started
+            passed = get_current_time(env) - t.started
             og_size = 40 * ((t.spawn_cooldown - passed / 2) / t.spawn_cooldown + 0.5)
-            smaller_r = og_size * math.sqrt(3)/2
+            ratio = math.sqrt(3)/2
+            smaller_r = og_size * ratio * 2 / 3
             fx = (((passed - t.spawn_cooldown + 300) / 250) ** 2) * 100
             gx = fx - (passed)
             hx = gx if fx > (fx - gx) and passed < 500 else 0
@@ -183,9 +187,11 @@ class ArenaRenderer:
             color_function = 0 if qx < 0 else 100 if qx > 100 else qx
             color_saturation = min(100, max(0, color_function))
             color = change_color_saturation(RED, color_saturation)
-            pygame.draw.circle(self.screen, color, t.pos, og_size * 1.125, width=1)
-            pygame.draw.circle(self.screen, color, t.pos, smaller_r * 0.875, width=1)
-            self.draw_regular_polygon(t.pos, 6, 90.0 - passed * 0.1, og_size, color, 1)
+            pygame.draw.circle(self.screen, color, t.pos, og_size + 8, width=1)
+            pygame.draw.circle(self.screen, color, t.pos, smaller_r * 1.5, width=1)
+            pygame.draw.circle(self.screen, color, t.pos, smaller_r, width=1)
+            self.draw_regular_polygon(t.pos, 6, 90.0 + passed * 0.1, og_size + 8, color, 1)
+            self.draw_regular_polygon(t.pos, 6, 90.0 - passed * 0.1, smaller_r * 1.5, color, 1)
             self.draw_regular_polygon(t.pos, 3, 90.0 + passed * 0.1, smaller_r, color, 1)
             self.draw_regular_polygon(t.pos, 3, 270.0 + passed * 0.1, smaller_r, color, 1)
 

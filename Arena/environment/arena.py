@@ -73,23 +73,20 @@ class ArenaEnv(gym.Env):
         )
         
         # These lists self-update when a new instance is created
-        self.hittables: List = []
-        self.bullets: List = []
-
-        # Physics helper
-        # self.last_physic_frame = pygame.time.get_ticks()
+        self.hittables: List[entities.Hittable] = []
+        self.bullets: List[entities.Bullet] = []
 
         # State variables (initialized in reset)
-        self.agent = None
+        self.agent: entities.Agent = None
         self.score = 0
         self.alive: bool = True
         self.step_count: int = 0
 
         # Spawn indication
         self.out_of_spawners = -999
-        self.teleporters: List = []
-        self.spawners: List = []
-        self.enemies: List = []
+        self.teleporters: List[entities.Teleporter] = []
+        self.spawners: List[entities.Spawner] = []
+        self.enemies: List[entities.Enemy] = []
         
         # Renderer setup
         self.renderer: Optional[ArenaRenderer] = None
@@ -104,8 +101,6 @@ class ArenaEnv(gym.Env):
 
         self.hittables.clear()
         self.bullets.clear()
-
-        # self.last_physic_frame = pygame.time.get_ticks()
         
         self.agent = entities.Agent(self.start, angle=0.0, env=self)
         self.score = 0
@@ -210,9 +205,8 @@ class ArenaEnv(gym.Env):
                  self.agent.health, self.agent.max_health, self.agent.power, self.difficulty)
         return state
 
-    def update(self, dt):
-        # current_time = pygame.time.get_ticks()
-        cooldown_steps = int(1.0 / dt)
+    def update(self, dt = 1/60):
+        current_time = self.step_count * dt * 1000
         for b in self.bullets[:]:
             b.update(dt)
         for h in self.hittables[:]:
@@ -234,15 +228,14 @@ class ArenaEnv(gym.Env):
                 # Time that spawners ran out
                 self.out_of_spawners = self.step_count
                 # Populate teleporters list
-                self.teleporters = [entities.Teleporter(pos, cooldown_steps, self.step_count, self) for pos in self.select_spawners_positions()]
+                self.teleporters = [entities.Teleporter(pos, 1000, current_time, self) for pos in self.select_spawners_positions()]
             # Try spawning spawner
             self.try_spawning_spawners()
         else:
             # Clear teleporter list if there are still spawners
             self.teleporters.clear()
-        self.last_physic_frame = cooldown_steps
     
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: int, dt = 1.0/60.0) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Execute one step of the environment.
         
@@ -250,6 +243,7 @@ class ArenaEnv(gym.Env):
             action: Integer ranging from 0 to\n
                 control_style = SPEEN_AND_VROOM: 4\n
                 control_style = BORING_4D_PAD: 5
+            dt: difference in time between 2 steps, default 1/60
         
         Returns:
             observation: np.ndarray of current state
@@ -258,10 +252,6 @@ class ArenaEnv(gym.Env):
             truncated: bool whether episode was truncated (time limit)
             info: dict with additional info
         """
-
-        # Ensure math work correctly using dt (in case of lag/delay)
-        current_time = pygame.time.get_ticks()
-        dt = 1.0 / 60.0
         
         previous_score = self.score
         previous_hp = self.agent.health

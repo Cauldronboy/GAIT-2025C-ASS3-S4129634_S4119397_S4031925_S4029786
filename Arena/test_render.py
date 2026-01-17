@@ -37,6 +37,9 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
+            if event.key == pygame.K_k:
+                for spawner in env.spawners[:]:
+                    spawner.health = 0
     
     
     if terminated or truncated:
