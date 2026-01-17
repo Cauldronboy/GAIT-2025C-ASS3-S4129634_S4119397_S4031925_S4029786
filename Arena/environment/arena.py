@@ -329,7 +329,7 @@ class ArenaEnv(gym.Env):
             # Lose reward based on how far away agent is pointing from nearest enemy
             if closest_enemy is not None:
                 closest_enemy_dir = vectorHelper.vec_to_ang(vectorHelper.vec_sub(closest_enemy.position, self.agent.position))
-                ang_diff = abs(self.agent - closest_enemy_dir)
+                ang_diff = abs(self.agent.angle - closest_enemy_dir)
                 reward -= ang_diff / 720 * dt # ang_dif/720 per second, if 180 degrees away 0.25 per second
             
 
@@ -350,7 +350,7 @@ class ArenaEnv(gym.Env):
             # Lose reward based on how far away agent is pointing from nearest spawner
             if closest_spawner is not None:
                 closest_spawner_dir = vectorHelper.vec_to_ang(vectorHelper.vec_sub(closest_spawner.position, self.agent.position))
-                ang_diff = abs(self.agent - closest_spawner_dir)
+                ang_diff = abs(self.agent.angle - closest_spawner_dir)
                 reward -= ang_diff / 180 * dt # ang_dif/720 per second, if 180 degrees away 1 per second
         
         return observation, reward, terminated, truncated, info
