@@ -6,7 +6,7 @@ import os
 import time
 
 # Add the environment
-from Arena.environment.arena import ArenaEnv, SPEEN_AND_VROOM, BORING_4D_PAD
+from environment import ArenaEnv, SPEEN_AND_VROOM, BORING_4D_PAD
 
 import torch
 torch.set_num_threads(8)
@@ -14,13 +14,13 @@ torch.set_num_threads(8)
 if __name__ == "__main__":
     def make_env(control_style):
         def _init():
-            return Monitor(ArenaEnv(control_style=control_style))
+            return Monitor(ArenaEnv(control_style=control_style, render_mode="human"))
         return _init
 
-    num_envs = 8
+    num_envs = 4
 
-    models1_dir = f"models_control_style_1/PPO"
-    logs1_dir = f"logs_control_style_1/PPO"
+    models1_dir = f"models/models_control_style_1/PPO"
+    logs1_dir = f"logs/logs_control_style_1/PPO"
 
     if not os.path.exists(models1_dir):
         os.makedirs(models1_dir)
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     agent1 = PPO(
         "MlpPolicy",
         env1,
-        n_steps=256,        # IMPORTANT with VecEnv
+        n_steps=1024,        # IMPORTANT with VecEnv
         batch_size=1024,
         n_epochs=5,
         verbose=1,
@@ -50,8 +50,8 @@ if __name__ == "__main__":
     env1.close()
 
     # Second training agent (Different action space)
-    models2_dir = f"models_control_style_2/PPO"
-    logs2_dir = f"logs_control_style_2/PPO"
+    models2_dir = f"models/models_control_style_2/PPO"
+    logs2_dir = f"logs/logs_control_style_2/PPO"
 
     if not os.path.exists(models2_dir):
         os.makedirs(models2_dir)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     agent2 = PPO(
         "MlpPolicy",
         env2,
-        n_steps=256,
+        n_steps=1024,
         batch_size=1024,
         n_epochs=5,
         verbose=1,
