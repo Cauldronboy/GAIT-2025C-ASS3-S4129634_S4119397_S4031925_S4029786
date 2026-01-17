@@ -307,31 +307,51 @@ class ArenaEnv(gym.Env):
         
         
         if not terminated:
+
+            # Find closest enemy
+            closest_enemy = None
+            closest_enemy_dist: float = 10000.0
             
-            for enem in self.enemies[:]:        
-            # Add reward for each enemies hit within the last 100 ms    
+            for enem in self.enemies[:]:
+                # Check for closer enemy
+                dist = vectorHelper.vec_len(self.agent.position, enem.position)
+                if dist < closest_enemy_dist:
+                    closest_enemy_dist = dist
+                    closest_enemy = enem
+                # Add reward for each enemies hit within the last 100 ms    
                 if enem.invincible:
                     reward += 5 * dt
+            # More reward if enemy died
             for husk in [htb for htb in self.hittables if isinstance(htb, entities.Husk)]:
                 if husk.health >= 190:
                     reward += 10 * dt
             
+            # Lose reward based on how far away agent is pointing from nearest enemy
+            if closest_enemy is not None:
+                closest_enemy_dir = vectorHelper.vec_to_ang(vectorHelper.vec_sub(closest_enemy.position, self.agent.position))
+                ang_diff = abs(self.agent - closest_enemy_dir)
+                reward -= ang_diff / 720 * dt # ang_dif/720 per second, if 180 degrees away 0.25 per second
+            
 
-            for enem in self.spawners[:]:
-                # Copy paste closest spawner calculation from encode state
-                closest_spawner_dist: float = 10000.0
-                dist = vectorHelper.vec_len(self.agent.position, enem.position)
+            # Find closest spawner
+            closest_spawner = None
+            closest_spawner_dist: float = 10000.0
+
+            for spwn in self.spawners[:]:
+                # Check for closer spawner
+                dist = vectorHelper.vec_len(self.agent.position, spwn.position)
                 if dist < closest_spawner_dist:
                     closest_spawner_dist = dist
-                    closest_spawner = enem
-                
+                    closest_spawner = spwn
+                # Add reward for each spawner hit within the last 100 ms
+                if spwn.invincible:
+                    reward += 20 * dt
+            
+            # Lose reward based on how far away agent is pointing from nearest spawner
+            if closest_spawner is not None:
                 closest_spawner_dir = vectorHelper.vec_to_ang(vectorHelper.vec_sub(closest_spawner.position, self.agent.position))
-                # NOTE: not sure if using angle like this is good or I have to use dot product of 2 vectors
-
-                if enem.invincible:
-                    reward += 20 * dt # Add reward for each spawner hit within the last 100 ms
-                if self.agent.angle < closest_spawner_dir - 10 or self.agent.angle > closest_spawner_dir + 10:
-                    reward -= 0.1 * dt # Lose reward if not targetting the closest spawner
+                ang_diff = abs(self.agent - closest_spawner_dir)
+                reward -= ang_diff / 180 * dt # ang_dif/720 per second, if 180 degrees away 1 per second
         
         return observation, reward, terminated, truncated, info
     
