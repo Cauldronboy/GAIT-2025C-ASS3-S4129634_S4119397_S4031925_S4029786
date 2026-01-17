@@ -4,7 +4,7 @@ Test script to verify arena rendering
 """
 
 import pygame
-from Arena.environment.arena import ArenaEnv
+from environment import ArenaEnv
 
 # Create environment with rendering enabled
 env = ArenaEnv(render_mode="human")
@@ -14,18 +14,21 @@ obs, info = env.reset()
 print("Environment reset successfully")
 print(f"Initial observation shape: {obs.shape}")
 
+reward_this_ep = 0
+
 # Run a few steps and render
 running = True
 clock = pygame.time.Clock()
 
 while running:
-    # Render the current state
-    env.render()
-    
+    # Control frame rate
+    clock.tick(60)
+
     # Random action
     action = env.action_space.sample()
     obs, reward, terminated, truncated, info = env.step(action)
-    
+    reward_this_ep += reward
+
     # Handle pygame events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -34,12 +37,16 @@ while running:
             if event.key == pygame.K_ESCAPE:
                 running = False
     
-    # Control frame rate
-    clock.tick(60)
     
     if terminated or truncated:
         obs, info = env.reset()
+        reward_this_ep = 0
         print("Episode reset")
+    
+    extra_info = f"Reward this episode: {reward_this_ep}"
+
+    # Render the current state
+    env.render(info=extra_info)
 
 env.close()
 print("Test completed")

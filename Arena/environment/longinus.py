@@ -1,9 +1,6 @@
 """Longinus gets its own file because of the complexity"""
 
-try:
-    from . import entities
-except ImportError:
-    import entities
+import environment.entities as entities
 from typing import Tuple, Dict, List, Optional, Set
 import random
 import enum

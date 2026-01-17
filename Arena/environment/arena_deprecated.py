@@ -74,6 +74,8 @@ class Arena:
         self.enemies: List[entities.Enemy] = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
 
     def reset(self) -> Tuple:
+        
+        self.difficulty = 0
         self.hittables.clear()
         self.bullets.clear()
 
@@ -262,8 +264,6 @@ class Arena:
 
 
 # Import entities after Arena class is defined to avoid circular imports
-try:
-    from . import entities
-except ImportError:
-    import entities
+
+import environment.entities as entities
 

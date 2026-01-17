@@ -10,12 +10,7 @@ import enum
 from dataclasses import dataclass
 from typing import Tuple, List, Set, Dict, Optional
 
-try:
-    from . import vectorHelper
-    from .renderer import ArenaRenderer
-except ImportError:
-    import vectorHelper
-    from renderer import ArenaRenderer
+import environment.vectorHelper as vectorHelper
 
 import gymnasium as gym
 import numpy as np
@@ -105,16 +100,12 @@ class ArenaEnv(gym.Env):
     def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
         super().reset(seed=seed)
         
+        self.difficulty = 0
+
         self.hittables.clear()
         self.bullets.clear()
 
         self.last_physic_frame = pygame.time.get_ticks()
-
-        # Initialize agent (import here to avoid circular imports)
-        try:
-            from . import entities
-        except ImportError:
-            import entities
         
         self.agent = entities.Agent(self.start, angle=0.0, env=self)
         self.score = 0
@@ -219,10 +210,8 @@ class ArenaEnv(gym.Env):
                  self.agent.health, self.agent.max_health, self.agent.power, self.difficulty)
         return state
 
-    def update(self):
-        # Ensure physics work correctly using dt (in case of lag/delay)
+    def update(self, dt):
         current_time = pygame.time.get_ticks()
-        dt = (current_time - self.last_physic_frame) / 1000.0
         for b in self.bullets[:]:
             b.update(dt)
         for h in self.hittables[:]:
@@ -269,6 +258,10 @@ class ArenaEnv(gym.Env):
             info: dict with additional info
         """
         
+        # Ensure math work correctly using dt (in case of lag/delay)
+        current_time = pygame.time.get_ticks()
+        dt = (current_time - self.last_physic_frame) / 1000.0
+        
         previous_score = self.score
         previous_hp = self.agent.health
         previous_maxhp = self.agent.max_health
@@ -278,7 +271,7 @@ class ArenaEnv(gym.Env):
         self.agent.do(style=self.control_style, action=ALL_ACTIONS[self.control_style][action])
         
         # Update environment
-        self.update()
+        self.update(dt)
 
         reward = 0.0
         done = False
@@ -286,9 +279,8 @@ class ArenaEnv(gym.Env):
 
 
         # TODO: Reward function
-
-        if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
-            reward -= 0.001
+            
+        reward -= 0.1 * dt # Agent loses 0.1 reward every second to discourage doing nothing
         
         if previous_hp > self.agent.health: # Agent loses 1 reward if hit
             reward -= 1
@@ -306,7 +298,6 @@ class ArenaEnv(gym.Env):
         score_diff = self.score - previous_score
         if score_diff > 0:
             reward += (score_diff / 10)
-            score_diff = 0
         
         
         # Get new observation
@@ -326,19 +317,27 @@ class ArenaEnv(gym.Env):
             # Add reward for each enemies hit within the last 100 ms
             for enem in self.enemies[:]:
                 if enem.invincible:
-                    reward += 1.0
+                    reward += 1 * dt
+            for husk in [htb for htb in self.hittables if isinstance(htb, entities.Husk)]:
+                if husk.health >= 190:
+                    reward += 1 * dt
+            
+            # Add reward for each spawner hit within the last 100 ms
+            for enem in self.spawners[:]:
+                if enem.invincible:
+                    reward += 10 * dt
 
         self.step_count += 1
         
         return observation, reward, terminated, truncated, info
     
-    def render(self):
+    def render(self, info: str = ""):
         """Render the environment."""
         if self.render_mode == "human":
             if self.renderer is None:
                 self.renderer = ArenaRenderer()
                 self.renderer.init_display(self)
-            self.renderer.render(self, step=self.step_count)
+            self.renderer.render(self, step=self.step_count, extra_info=info)
             self.renderer.tick(self.metadata["render_fps"])
     
     def close(self):
@@ -349,8 +348,7 @@ class ArenaEnv(gym.Env):
 
 
 # Import entities after ArenaEnv class is defined to avoid circular imports
-try:
-    from . import entities
-except ImportError:
-    import entities
+
+import environment.entities as entities
+from environment.renderer import ArenaRenderer
  

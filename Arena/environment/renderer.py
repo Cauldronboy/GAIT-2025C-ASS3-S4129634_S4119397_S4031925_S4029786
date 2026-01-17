@@ -5,7 +5,7 @@ import math
 from typing import Optional, Tuple, List
 import environment.entities as entities
 import environment.longinus as longinus
-from .arena import Arena
+from environment.arena import ArenaEnv as Arena
 import environment.vectorHelper as vectorHelper
 
 RED     = (255, 0  , 0  )
@@ -191,7 +191,7 @@ class ArenaRenderer:
 
     def draw_hud(self, episode: int, total_episodes: int, step: int,
                  algorithm: str = "Deep Reinforcement Learning",
-                 difficulty: int = 0, extra_info: str = ""):
+                 difficulty: int = 0, agent = None, extra_info: str = ""):
         """Draw heads-up display with training stats."""
         y_offset = 8
         line_height = 20
@@ -199,6 +199,7 @@ class ArenaRenderer:
         lines = [
             f"{algorithm} - Difficulty: {difficulty}",
             f"Episode: {episode + 1}/{total_episodes}  Step: {step}",
+            f"Health: {agent.health}/{agent.max_health}  Damage: {agent.power}" if agent is not None else None,
             extra_info if extra_info else "R: reset | ESC: quit"
         ]
         
@@ -235,8 +236,7 @@ class ArenaRenderer:
         self.draw_teleporter(env)
         self.draw_hittables(env)
         self.draw_bullets(env)
-        extra_info = f"Health: {env.agent.health}/{env.agent.max_health}  Damage: {env.agent.power}"
-        self.draw_hud(episode, total_episodes, step, algorithm, env.difficulty, extra_info)
+        self.draw_hud(episode, total_episodes, step, algorithm, env.difficulty, env.agent, extra_info)
 
         # Update display
         pygame.display.flip()

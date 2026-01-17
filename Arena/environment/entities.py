@@ -6,12 +6,8 @@ import random
 import enum
 from typing import Tuple, List, Set, Dict, Optional
 
-try:
-    from . import vectorHelper
-    from . import arena
-except ImportError:
-    import vectorHelper
-    import arena
+import environment.vectorHelper as vectorHelper
+import environment.arena as arena
 
 
 # Object hitbox sizes
@@ -120,7 +116,7 @@ class Bullet:
                  damage: int = 10,
                  speed: int = 200,
                  size: int = 1,
-                 env: arena.Arena = None):
+                 env: arena.ArenaEnv = None):
         self.owner = owner
         self.position = position
         self.direction = vectorHelper.vec_norm(direction)
@@ -165,7 +161,7 @@ class Explosion(Bullet):
                  owner: Optional["Hittable"] = None,
                  damage: int = 50,
                  radius: int = 20,
-                 env: arena.Arena = None):
+                 env: arena.ArenaEnv = None):
         super().__init__(position, (0, 0), owner, damage, 0, 1, env)
         self.hitbox = pygame.Rect(position[0] - radius,
                                   position[1] - radius,
@@ -214,7 +210,7 @@ class Hittable:
             max_speed: float = 0,
             hitbox: Optional[pygame.Rect] = None,
             i_time: int = 600,
-            env: arena.Arena = None):
+            env: arena.ArenaEnv = None):
         self.position = position
         self.velocity = (0.0, 0.0)
         self.accel = (0.0, 0.0)
@@ -327,7 +323,7 @@ class Player(Hittable):
     """Player agent for Arena environment"""
     def __init__(self, position: Tuple[float, float],
                  angle: float = 0.0,
-                 env: arena.Arena = None):
+                 env: arena.ArenaEnv = None):
         """`angle` is in degrees"""
         rect = pygame.Rect(position[0] - PLAYER_HITBOX_SIZE // 2,
                            position[1] - PLAYER_HITBOX_SIZE // 2,
@@ -437,7 +433,7 @@ class Enemy(Hittable):
                  type: EnemyTypes = EnemyTypes.RAMMER,
                  target: Optional["Player"] = None,
                  iteration: Optional[int] = None,
-                 env: arena.Arena = None):
+                 env: arena.ArenaEnv = None):
         """`angle` is in degrees"""
         this_size = int(round(ENEMY_HITBOX_SIZE * (enemy_type_modifiers[type]["size"] / 100.0)))
         rect = pygame.Rect(position[0] - this_size / 2,
@@ -577,7 +573,7 @@ class Spawner(Hittable):
     def __init__(self, position: Tuple[float, float],
                  difficulty: int = 0,
                  target: Player = None,
-                 env: arena.Arena = None):
+                 env: arena.ArenaEnv = None):
         rect = pygame.Rect(position[0] - SPAWNER_HITBOX_SIZE // 2,
                            position[1] - SPAWNER_HITBOX_SIZE // 2,
                            SPAWNER_HITBOX_SIZE,
@@ -616,7 +612,7 @@ class Fabricator:
     """
     def __init__(self,spawn_cooldown: int = 5000,
                  last_spawn_time: int = -999,
-                 env: arena.Arena = None):
+                 env: arena.ArenaEnv = None):
         self.spawn_cooldown = spawn_cooldown
         self.last_spawn_time = last_spawn_time
         self.env = env
@@ -664,7 +660,4 @@ class Teleporter(Fabricator):
         self.started = pygame.time.get_ticks()
 
 
-try:
-    from .longinus import Longinus
-except ImportError:
-    from longinus import Longinus
+from environment.longinus import Longinus
