@@ -6,18 +6,18 @@ GAIT Assignment 3 - Part 2: Deep RL real time Arena training
 import sys
 import pygame
 from typing import Optional, Tuple
-from environment import Arena, ArenaRenderer, SPEEN_AND_VROOM, BORING_4D_PAD, A_NONE, A_SHOOT, A_1_FORWARD, A_1_LEFT, A_1_RIGHT, A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT
+from environment import SPEEN_AND_VROOM, BORING_4D_PAD, SPEEN_VROOM_ALL_ACTIONS, BORING_4D_PAD_ALL_ACTIONS
+from environment.arena import ArenaEnv, A_NONE, A_SHOOT, A_1_FORWARD, A_1_LEFT, A_1_RIGHT, A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT, ALL_ACTIONS
+from environment import entities
 
 
 # For Debugging
-arena = Arena()
-renderer = ArenaRenderer()
+arena = ArenaEnv(BORING_4D_PAD, render_mode="human")
 if arena is None:
     print("environment fail")
 else:
     print("environment success")
 
-renderer.init_display(arena)
 
 clock = pygame.time.Clock()
 
@@ -27,20 +27,12 @@ upward = False
 leftward = False
 rightward = False
 downward = False
+e = None
+arena.reset()
 while running:
+    control = 0
     do = A_NONE
-    if forward:
-        do = A_1_FORWARD
-    if upward and rightward and leftward and rightward:
-        do = A_NONE
-    elif upward:
-        do = A_2_UP
-    elif downward:
-        do = A_2_DOWN
-    elif leftward:
-        do = A_2_LEFT
-    elif rightward:
-        do = A_2_RIGHT
+    control_style = None
     
     for event in pygame.event.get():
         if event == pygame.QUIT:
@@ -59,11 +51,21 @@ while running:
             if event.key == pygame.K_UP:
                 forward = True
             elif event.key == pygame.K_LEFT:
+                control_style = SPEEN_AND_VROOM
                 do = A_1_LEFT
             elif event.key == pygame.K_RIGHT:
+                control_style = SPEEN_AND_VROOM
                 do = A_1_RIGHT
             elif event.key == pygame.K_z or event.key == pygame.K_j:
                 do = A_SHOOT
+            if event.key == pygame.K_SPACE:
+                for htb in arena.hittables[:]:
+                    if not (isinstance(htb, entities.Agent) or isinstance(htb, entities.Player)):
+                        htb.destroy()
+            if event.key == pygame.K_p:
+                for htb in arena.hittables[:]:
+                    if isinstance(htb, entities.Enemy):
+                        htb.destroy()
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_w:
                 upward = False
@@ -75,8 +77,32 @@ while running:
                 downward = False
             if event.key == pygame.K_UP:
                 forward = False
-    arena.step(style=1, action=do)
-    renderer.render(arena)
+    
+    if forward and do != A_SHOOT:
+        control += 1
+        control_style = SPEEN_AND_VROOM
+        do = A_1_FORWARD
+    if control_style is None and do != A_SHOOT:
+        if upward:
+            control += 1
+            control_style = BORING_4D_PAD
+            do = A_2_UP
+        if downward:
+            control += 1
+            control_style = BORING_4D_PAD
+            do = A_2_DOWN
+        if leftward:
+            control += 1
+            control_style = BORING_4D_PAD
+            do = A_2_LEFT
+        if rightward:
+            control += 1
+            control_style = BORING_4D_PAD
+            do = A_2_RIGHT
+        if control > 1:
+            do = A_NONE
+    arena.step(ALL_ACTIONS[arena.control_style].index(do))
+    arena.render(0, 0, "Debug: SPACE clear all Enemy and Spawner")
     if not arena.alive:
         running = False
     clock.tick(60)
