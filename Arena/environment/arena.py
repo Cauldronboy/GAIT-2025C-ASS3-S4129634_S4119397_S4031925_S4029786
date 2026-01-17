@@ -10,11 +10,16 @@ import enum
 from dataclasses import dataclass
 from typing import Tuple, List, Set, Dict, Optional
 
-
 try:
     from . import vectorHelper
+    from .renderer import ArenaRenderer
 except ImportError:
     import vectorHelper
+    from renderer import ArenaRenderer
+
+import gymnasium as gym
+import numpy as np
+from gymnasium import spaces
 
 
 # Action sets
@@ -23,13 +28,8 @@ A_NONE, A_SHOOT = 0, 10
 ANTI_CLOCKWISE, CLOCKWISE = -1, 1
 A_1_FORWARD, A_1_LEFT, A_1_RIGHT = 1, 2, 3
 A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT = 1, 2, 3, 4
-
-@dataclass
-class StepResult:
-    next_state: Tuple
-    reward: float
-    done: bool
-    info: dict
+SPEEN_VROOM_ALL_ACTIONS = [A_NONE, A_1_FORWARD, A_1_LEFT, A_1_RIGHT, A_SHOOT]
+BORING_4D_PAD_ALL_ACTIONS = [A_NONE, A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT, A_SHOOT]
 
 
 # Interaction variables
@@ -41,43 +41,81 @@ ARENA_CORNERS = {
     "bottomright": (1000, 1000),
     "bottomleft": (0, 1000)
 }
-NO_TARGET_POS = float('inf')
+NO_TARGET_POS = 10000.0  # Large finite value indicating no target found
 
 
-class Arena:
-    def __init__(self, size: Tuple[int, int] = (ARENA_WIDTH, ARENA_HEIGHT), difficulty: int = 0):
+class ArenaEnv(gym.Env):
+    metadata = {"render_modes": ["human"], "render_fps": 60}
+    
+    def __init__(self, control_style=SPEEN_AND_VROOM, size: Tuple[int, int] = (ARENA_WIDTH, ARENA_HEIGHT), difficulty: int = 0, render_mode: str = None):
         # Arena info
         self.size = size
         self.difficulty = difficulty
         self.start: Tuple[float, float] = (ARENA_WIDTH / 2, ARENA_HEIGHT / 2)
+        self.render_mode = render_mode
+        self.control_style = control_style
+
+        self.max_steps = 1000
+        
+        # Define action and observation spaces
+        # Actions: 0=no action, 1=shoot, 2=forward, 3=left, 4=right, 5=backward
+        if self.control_style == SPEEN_AND_VROOM:
+            self.action_space = spaces.Discrete(5)  # 0-4 (no unused action)
+        else:
+            self.action_space = spaces.Discrete(6)  # 0-5
+        
+        # Observation space: 19 elements
+        # [pos_x, pos_y, vel_x, vel_y, point_x, point_y, 
+        #  enemy_dist, enemy_pos_x, enemy_pos_y,
+        #  spawner_dist, spawner_pos_x, spawner_pos_y,
+        #  bullet_dist, bullet_pos_x, bullet_pos_y,
+        #  health, max_health, power, difficulty]
+        self.observation_space = spaces.Box(
+            low=np.array([-np.inf] * 19, dtype=np.float32),
+            high=np.array([np.inf] * 19, dtype=np.float32),
+            dtype=np.float32
+        )
+        
         # These lists self-update when a new instance is created
-        self.hittables: List[entities.Hittable] = []
-        self.bullets: List[entities.Bullet] = []
+        self.hittables: List = []
+        self.bullets: List = []
 
         # Physics helper
         self.last_physic_frame = pygame.time.get_ticks()
 
         # State variables (initialized in reset)
-        self.agent: entities.Agent = entities.Agent(position=self.start, angle=0.0, env=self)
-        self.score: int = 0
+        self.agent = None
+        self.score = 0
         self.alive: bool = True
         self.step_count: int = 0
 
         # Spawn indication
         self.out_of_spawners = -999
-        self.teleporters: List[entities.Teleporter] = [entities.Teleporter(pos, 0, env=self) for pos in self.select_spawners_positions()]
-        # Destruction objectives
-        self.try_spawning_spawners()
-        self.spawners: List[entities.Spawner] = [spn for spn in self.hittables if isinstance(spn, entities.Spawner)]
-        self.enemies: List[entities.Enemy] = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
-
-    def reset(self) -> Tuple:
+        self.teleporters: List = []
+        self.spawners: List = []
+        self.enemies: List = []
+        
+        # Renderer setup
+        self.renderer: Optional[ArenaRenderer] = None
+        if self.render_mode == "human":
+            self.renderer = ArenaRenderer()
+            self.renderer.init_display(self)
+    
+    def reset(self, seed=None, options=None) -> Tuple[np.ndarray, dict]:
+        super().reset(seed=seed)
+        
         self.hittables.clear()
         self.bullets.clear()
 
         self.last_physic_frame = pygame.time.get_ticks()
 
-        self.agent = entities.Agent(self.start, angle=0.0)
+        # Initialize agent (import here to avoid circular imports)
+        try:
+            from . import entities
+        except ImportError:
+            import entities
+        
+        self.agent = entities.Agent(self.start, angle=0.0, env=self)
         self.score = 0
         self.alive = True
         self.step_count = 0
@@ -88,7 +126,8 @@ class Arena:
         self.spawners = [spn for spn in self.hittables if isinstance(spn, entities.Spawner)]
         self.enemies = [enem for enem in self.hittables if isinstance(enem, entities.Enemy)]
 
-        return self.encode_state()
+        observation = self._get_observation()
+        return observation, {}
 
     def select_spawners_positions(self) -> List[Tuple[float, float]]:
         """Randomly select positions to spawn spawners"""
@@ -107,6 +146,11 @@ class Arena:
             if rand_pos is not None:
                 positions.append(rand_pos)
         return positions
+    
+    def _get_observation(self) -> np.ndarray:
+        """Get current observation as numpy array"""
+        state = self.encode_state()
+        return np.array(state, dtype=np.float32)
     
     def try_spawning_spawners(self):
         """Try spawning spawner with teleporters"""
@@ -133,7 +177,7 @@ class Arena:
         agent_pointing = vectorHelper.ang_to_vec(self.agent.angle)
 
         closest_enemy: entities.Enemy = None
-        closest_enemy_dist: float = float('inf')
+        closest_enemy_dist: float = 10000.0
         for enem in self.enemies:
             dist = vectorHelper.vec_len(self.agent.position, enem.position)
             if dist < closest_enemy_dist:
@@ -142,7 +186,7 @@ class Arena:
         
         
         closest_spawner: entities.Spawner = None
-        closest_spawner_dist: float = float('inf')
+        closest_spawner_dist: float = 10000.0
         for spn in self.spawners:
             dist = vectorHelper.vec_len(self.agent.position, spn.position)
             if dist < closest_spawner_dist:
@@ -152,7 +196,7 @@ class Arena:
 
         enemy_bullets = [bullet for bullet in self.bullets if bullet.owner != self.agent]
         closest_enemy_bullet: entities.Spawner = None
-        closest_enemy_bullet_dist: float = float('inf')
+        closest_enemy_bullet_dist: float = 10000.0
         for bullet in enemy_bullets:
             dist = vectorHelper.vec_len(self.agent.position, bullet.position)
             if dist < closest_enemy_bullet_dist:
@@ -207,10 +251,27 @@ class Arena:
             self.teleporters.clear()
         self.last_physic_frame = current_time
     
-    def step(self, style = SPEEN_AND_VROOM, action = A_NONE) -> StepResult:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
-        TODO: Reward function
+        Execute one step of the environment.
+        
+        Args:
+            action: Variable from action set
+        
+        Returns:
+            observation: np.ndarray of current state
+            reward: float reward for this step
+            terminated: bool whether episode ended (agent dead)
+            truncated: bool whether episode was truncated (time limit)
+            info: dict with additional info
         """
+        
+        # Perform action
+        self.agent.do(style=self.control_style, action=action)
+        
+        # Update environment
+        self.update()
+
         reward = 0.0
         done = False
         cd = False
@@ -220,16 +281,10 @@ class Arena:
         previous_maxhp = self.agent.max_health
         previous_difficulty = self.difficulty
 
-        # Every single step is a physic frame, meaning the Agent will perform an action every frame
-
-        self.agent.do(style=style, action=action)   # Perform an action
-        
-        self.update()
-
         # TODO: Reward function
 
         if self.agent.health <= self.agent.max_health: # Agent loses 1/4 reward every second to discourage running
-            reward -= 1/240
+            reward -= 0.001
         
         if previous_hp > self.agent.health: # Agent loses 1 reward if hit
             reward -= 1
@@ -243,25 +298,61 @@ class Arena:
         if previous_difficulty < self.difficulty: # Reward for moving to next stage
             reward += 10 
 
+        if self.score > previous_score:
+            reward += 5.0
+
         # NOTE: Handle score variable
         score_diff = self.score - previous_score
         if score_diff > 0:
             reward += (score_diff / 10)
             score_diff = 0
+        
+        
+        # Get new observation
+        observation = self._get_observation()
+
+        truncated = self.step_count >= self.max_steps
+        terminated = not self.alive
+            
+        if terminated:
+            print("Episode ended: TERMINATED")
+        if truncated:
+            print("Episode ended: TRUNCATED")
+        
+        info = {"step_count": self.step_count}
+        
+        if not terminated:
+            for enem in self.enemies[:]:
+                if enem.invincible:
+                    reward += 1.0
+
+            score_diff = self.score - previous_score
+            if score_diff > 0:
+                reward += score_diff * 0.5
+
+        self.step_count += 1
+        
+        return observation, reward, terminated, truncated, info
+    
+    def render(self):
+        """Render the environment."""
+        if self.render_mode == "human":
+            if self.renderer is None:
+                self.renderer = ArenaRenderer()
+                self.renderer.init_display(self)
+            self.renderer.render(self, step=self.step_count)
+            self.renderer.tick(self.metadata["render_fps"])
+    
+    def close(self):
+        """Close the renderer."""
+        if self.renderer is not None:
+            self.renderer.close()
+            self.renderer = None
 
 
-        # Placeholder return
-        return StepResult(
-            next_state=self.encode_state(),
-            reward=reward,
-            done=False,
-            info={}
-        )
-
-
-# Import entities after Arena class is defined to avoid circular imports
+# Import entities after ArenaEnv class is defined to avoid circular imports
 try:
     from . import entities
 except ImportError:
     import entities
-
+ 

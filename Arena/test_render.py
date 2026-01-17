@@ -4,7 +4,7 @@ Test script to verify arena rendering
 """
 
 import pygame
-from environment.arenaEnv import ArenaEnv
+from Arena.environment.arena import ArenaEnv
 
 # Create environment with rendering enabled
 env = ArenaEnv(render_mode="human")

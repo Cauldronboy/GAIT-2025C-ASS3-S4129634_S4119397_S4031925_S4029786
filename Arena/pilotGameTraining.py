@@ -6,7 +6,7 @@ import os
 import time
 
 # Add the environment
-from environment.arenaEnv import ArenaEnv, SPEEN_AND_VROOM, BORING_4D_PAD
+from Arena.environment.arena import ArenaEnv, SPEEN_AND_VROOM, BORING_4D_PAD
 
 import torch
 torch.set_num_threads(8)
