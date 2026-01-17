@@ -30,6 +30,7 @@ A_1_FORWARD, A_1_LEFT, A_1_RIGHT = 1, 2, 3
 A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT = 1, 2, 3, 4
 SPEEN_VROOM_ALL_ACTIONS = [A_NONE, A_1_FORWARD, A_1_LEFT, A_1_RIGHT, A_SHOOT]
 BORING_4D_PAD_ALL_ACTIONS = [A_NONE, A_2_UP, A_2_DOWN, A_2_LEFT, A_2_RIGHT, A_SHOOT]
+ALL_ACTIONS = [SPEEN_VROOM_ALL_ACTIONS, BORING_4D_PAD_ALL_ACTIONS]
 
 
 # Interaction variables
@@ -270,9 +271,9 @@ class ArenaEnv(gym.Env):
         previous_hp = self.agent.health
         previous_maxhp = self.agent.max_health
         previous_difficulty = self.difficulty
-        
+
         # Perform action
-        self.agent.do(style=self.control_style, action=action)
+        self.agent.do(style=self.control_style, action=ALL_ACTIONS[self.control_style][action])
         
         # Update environment
         self.update()
