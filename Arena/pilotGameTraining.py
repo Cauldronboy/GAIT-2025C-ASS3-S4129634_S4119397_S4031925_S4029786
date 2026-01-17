@@ -41,7 +41,7 @@ if __name__ == "__main__":
     )
 
     TIMESTEPS = 25000 // num_envs
-    for i in range(1, 40):
+    for i in range(1, 50):
         agent1.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name="PPO")
         agent1.save(f"{models1_dir}/PPO_pilotGame_{TIMESTEPS*i}")
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     )
 
     TIMESTEPS = 25000 // num_envs
-    for i in range(1, 40):
+    for i in range(1, 50):
         agent2.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False, tb_log_name="PPO")
         agent2.save(f"{models2_dir}/PPO_pilotGame_{TIMESTEPS*i}")
 

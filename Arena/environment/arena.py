@@ -51,7 +51,7 @@ class ArenaEnv(gym.Env):
         self.render_mode = render_mode
         self.control_style = control_style
 
-        self.max_steps = 1000
+        self.max_steps = 2000
         
         # Define action and observation spaces
         # Actions: 0=no action, 1=shoot, 2=forward, 3=left, 4=right, 5=backward
@@ -111,8 +111,6 @@ class ArenaEnv(gym.Env):
         self.score = 0
         self.alive = True
         self.step_count = 0
-
-        print("RESET | step_count =", self.step_count, "max_steps =", self.max_steps)
 
         self.out_of_spawners = -999
         self.teleporters = [entities.Teleporter(pos, 0, env=self) for pos in self.select_spawners_positions()]
@@ -260,12 +258,6 @@ class ArenaEnv(gym.Env):
             truncated: bool whether episode was truncated (time limit)
             info: dict with additional info
         """
-        
-        print(
-            f"STEP {self.step_count} | "
-            f"health={self.agent.health} | "
-            f"alive={self.alive}"
-        )
 
         # Ensure math work correctly using dt (in case of lag/delay)
         current_time = pygame.time.get_ticks()
