@@ -7,7 +7,7 @@ from environment import ArenaEnv, SPEEN_AND_VROOM, BORING_4D_PAD
 env = ArenaEnv(control_style=SPEEN_AND_VROOM, render_mode="human")
 
 models_dir = f"models/models_control_style_1/PPO"
-models_path = f"{models_dir}/PPO_pilotGame_243750.zip" # Change to desired model path
+models_path = f"{models_dir}/PPO_final.zip" # Change to desired model path
 
 model = PPO.load(models_path, env=env)
 
