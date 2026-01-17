@@ -339,7 +339,7 @@ class ArenaEnv(gym.Env):
                 if enem.invincible:
                     reward += 10 * dt # Add reward for each spawner hit within the last 100 ms
                 if self.agent.angle < closest_spawner_dir - 10 or self.agent.angle > closest_spawner_dir + 10:
-                    reward -= 0.2 * dt # Lose reward if not targetting the closest spawner
+                    reward -= 0.1 * dt # Lose reward if not targetting the closest spawner
 
 
         self.step_count += 1
